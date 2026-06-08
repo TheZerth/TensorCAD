@@ -36,5 +36,6 @@ module Tensorsmith
 include("scalar_ring.jl")
 include("vector_space.jl")
 include("free_tensor.jl")
+include("quotient_algebras.jl")
 
 end # module Tensorsmith
