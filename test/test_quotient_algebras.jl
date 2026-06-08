@@ -275,18 +275,18 @@ end  # Cross-algebra isolation
 # ─────────────────────────────────────────────────────────────────────────────
 @testset "normalize function directly" begin
     # FreeAlgebra: identity
-    @test normalize(FreeAlgebra(), [2,1], R(3)) == ([2,1], R(3))
+    @test Tensorsmith.normalize(FreeAlgebra(), [2,1], R(3)) == ([2,1], R(3))
 
     # SymmetricAlgebra: sort, no sign
-    @test normalize(SymmetricAlgebra(), [2,1], R(3)) == ([1,2], R(3))
-    @test normalize(SymmetricAlgebra(), [3,1,2], R(1)) == ([1,2,3], R(1))
-    @test normalize(SymmetricAlgebra(), Int[], R(5)) == (Int[], R(5))
+    @test Tensorsmith.normalize(SymmetricAlgebra(), [2,1], R(3)) == ([1,2], R(3))
+    @test Tensorsmith.normalize(SymmetricAlgebra(), [3,1,2], R(1)) == ([1,2,3], R(1))
+    @test Tensorsmith.normalize(SymmetricAlgebra(), Int[], R(5)) == (Int[], R(5))
 
     # ExteriorAlgebra: sort with sign, zero on repeat
-    @test normalize(ExteriorAlgebra(), [1,1], R(1))   == (Int[], R(0))
-    @test normalize(ExteriorAlgebra(), [2,1], R(1))   == ([1,2], R(-1))
-    @test normalize(ExteriorAlgebra(), [1,2], R(1))   == ([1,2], R(1))
-    @test normalize(ExteriorAlgebra(), [3,2,1], R(1)) == ([1,2,3], R(-1))
-    @test normalize(ExteriorAlgebra(), [3,1,2], R(1)) == ([1,2,3], R(1))
-    @test normalize(ExteriorAlgebra(), Int[], R(7))   == (Int[], R(7))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), [1,1], R(1))   == (Int[], R(0))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), [2,1], R(1))   == ([1,2], R(-1))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), [1,2], R(1))   == ([1,2], R(1))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), [3,2,1], R(1)) == ([1,2,3], R(-1))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), [3,1,2], R(1)) == ([1,2,3], R(1))
+    @test Tensorsmith.normalize(ExteriorAlgebra(), Int[], R(7))   == (Int[], R(7))
 end
