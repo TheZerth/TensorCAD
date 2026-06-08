@@ -1,0 +1,17 @@
+name = "Tensorsmith"
+uuid = "76de2e0b-704b-43d8-99b4-e1f809ecc2c8"
+authors = ["Kainaan Riordan <drkainaan@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+# Phase 0–4: zero non-stdlib dependencies.
+# Symbolics.jl will be added in Phase 5 for build_function support.
+
+[compat]
+julia = "1.9"
+
+[extras]
+Test = "8dfed614-e22c-358a-6103-e272d43a2c93"
+
+[targets]
+test = ["Test"]
