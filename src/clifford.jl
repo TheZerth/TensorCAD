@@ -225,6 +225,8 @@ function Base.:*(c::R, t::CliffordTensor{R}) where R
 end
 
 Base.:*(t::CliffordTensor{R}, c::R) where R = c * t
+Base.:*(n::Integer, t::CliffordTensor{R}) where R = R(n) * t
+Base.:*(t::CliffordTensor{R}, n::Integer) where R = R(n) * t
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Geometric product

@@ -452,9 +452,9 @@ function Base.show(io::IO, t::AlgebraTensor{A,R}) where {A,R}
     parts  = String[]
     for (idx, c) in sorted
         s = _alg_idx_str(t.space, alg, idx)
-        if c == one(R)
+        if isequal(c, one(R))
             push!(parts, s)
-        elseif c == -one(R)
+        elseif isequal(c, -one(R))
             push!(parts, "-$s")
         else
             push!(parts, "($c)⋅$s")

@@ -285,6 +285,48 @@ end  # antisymmetrize
 
 end  # Symbol maps
 
+# ─────────────────────────────────────────────────────────────────────────────
+@testset "show does not throw on symbolic coefficients" begin
+    # Before the isequal fix, c == one(R) returned Num (not Bool) and threw.
+    c  = Symbolics.variable(:c)
+    e1 = basis_vector(V2, S, 1)
+    e2 = basis_vector(V2, S, 2)
+    t  = c * e1 + e2          # mixed: symbolic coef + unit coef
+    @test_nowarn repr(t)      # FreeTensor show
+    et = symbolic_element(V2, ExteriorAlgebra, :a)
+    @test_nowarn repr(et)     # AlgebraTensor show
+    gE_sym = symbolic_metric(signature_metric(V2, Rational{BigInt}, 2, 0, 0))
+    cv = symbolic_clifford_vector(gE_sym, :v)
+    @test_nowarn repr(cv)     # CliffordTensor show
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+@testset "isequal_simplified" begin
+    gE_sym = symbolic_metric(signature_metric(V2, Rational{BigInt}, 2, 0, 0))
+    a  = symbolic_clifford_vector(gE_sym, :a)
+    b  = symbolic_clifford_vector(gE_sym, :b)
+
+    # a*b + b*a = 2*(a1*b1 + a2*b2) * scalar  (commutator = 0 for grade-1)
+    sum1 = a * b + b * a
+    sum2 = b * a + a * b
+    @test isequal_simplified(sum1, sum2)
+
+    # An element is equal to itself
+    @test isequal_simplified(a, a)
+
+    # Distinct elements are not equal
+    @test !isequal_simplified(a, b)
+
+    # Commutativity of symbolic scalar multiplication
+    x  = Symbolics.variable(:x)
+    y  = Symbolics.variable(:y)
+    e1 = ext_basis_vector(V2, S, 1)
+    t1 = (x * e1) + (y * ext_basis_vector(V2, S, 2))
+    t2 = (y * ext_basis_vector(V2, S, 2)) + (x * e1)
+    # Structural == may fail (different insertion order); isequal_simplified must pass
+    @test isequal_simplified(t1, t2)
+end
+
 end  # @testset Phase 5
 
 end  # if symbolics_available

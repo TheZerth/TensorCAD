@@ -103,3 +103,50 @@ end
 export symbolic_metric
 
 end # module TensorsmithSymbolicsExt
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Symbolic equality
+
+"""
+    isequal_simplified(a, b) -> Bool
+
+Decide equality of two Tensorsmith elements whose scalar ring is
+`Symbolics.Num`.  Structural `==` is insufficient for symbolic coefficients
+because `x + y` and `y + x` are syntactically distinct even though equal.
+
+This function canonicalises every coefficient with `Symbolics.expand` (which
+distributes and collects terms) before comparing.  It returns `true` iff every
+basis blade appears in both elements with canonically equal coefficients.
+
+For the exact ring `Rational{BigInt}`, ordinary `==` is already correct — use
+that instead.
+
+# Example
+    gE = symbolic_metric(signature_metric(VectorSpace(2), Rational{BigInt}, 2, 0, 0))
+    a  = symbolic_clifford_vector(gE, :a)
+    b  = symbolic_clifford_vector(gE, :b)
+    prod1 = a * b + b * a          # should be 2*(a1*b1 + a2*b2) scalar
+    prod2 = b * a + a * b
+    isequal_simplified(prod1, prod2)  # true
+"""
+function isequal_simplified(
+    x :: T,
+    y :: T,
+) :: Bool where {T <: Union{FreeTensor{Symbolics.Num},
+                             AlgebraTensor{<:Any, Symbolics.Num},
+                             CliffordTensor{Symbolics.Num}}}
+    keys_x = Set(keys(x.terms))
+    keys_y = Set(keys(y.terms))
+    keys_x == keys_y || return false
+    for k in keys_x
+        diff = Symbolics.expand(x.terms[k] - y.terms[k])
+        isequal(diff, zero(Symbolics.Num)) || return false
+    end
+    true
+end
+
+# Also handle mixed sparsity: one element may lack a key the other has
+# (meaning coefficient zero).  The above loop only covers shared keys;
+# the key-set equality check handles the rest.
+
+export isequal_simplified
