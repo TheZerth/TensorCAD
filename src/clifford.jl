@@ -24,7 +24,7 @@ structs as type parameters.  A unified interface is planned for Phase 4.
 `terms :: Dict{Vector{Int}, R}` maps strictly-increasing multi-indices to nonzero
 coefficients.  Grade-k elements have length-k keys; the scalar uses `Int[]`.
 """
-struct CliffordTensor{R}
+struct CliffordTensor{R} <: AbstractTensorElement{R}
     metric :: Metric{R}
     terms  :: Dict{Vector{Int}, R}
 
@@ -168,16 +168,17 @@ clifford_one(metric::Metric{R}) where R = clifford_scalar(metric, one(R))
 clifford_one(metric::Metric{R}, ::Type{R}) where R = clifford_one(metric)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Predicates and equality
+# AbstractTensorElement hooks
+#
+# iszero, ==, hash, grade, grades, homogeneous_component come from the generic
+# methods in abstract_tensor.jl.  A Clifford element's identity is pinned by its
+# *metric* (not merely its space): two elements with equal terms but different
+# metrics are different elements, so _eq_key returns the metric.
 
-Base.iszero(t::CliffordTensor) = isempty(t.terms)
-
-function Base.:(==)(a::CliffordTensor{R}, b::CliffordTensor{R}) where R
-    a.metric == b.metric && a.terms == b.terms
-end
-
-Base.hash(t::CliffordTensor{R}, h::UInt) where R =
-    hash(t.terms, hash(t.metric, h))
+_eq_key(t::CliffordTensor)    = t.metric
+base_space(t::CliffordTensor) = t.metric.space
+_rebuild(t::CliffordTensor{R}, terms::Dict{Vector{Int}, R}) where R =
+    CliffordTensor{R}(t.metric, terms)
 
 function _check_compatible(a::CliffordTensor{R}, b::CliffordTensor{R}) where R
     a.metric == b.metric || throw(ArgumentError(
@@ -248,40 +249,36 @@ function Base.:*(a::CliffordTensor{R}, b::CliffordTensor{R}) where R
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Grade and graded components
+# Display
+#
+# Basis blades print like their exterior counterparts (e₁∧e₂): a canonical
+# Clifford basis blade of strictly-increasing distinct indices *is* the wedge
+# of those basis vectors.  We reuse the ±1 coefficient shortcuts and `isequal`
+# (rather than `==`) so the formatting is safe over a symbolic ring.
 
-"""
-    grade(t::CliffordTensor) → Int
-
-Grade of a homogeneous element.  Throws for zero or inhomogeneous elements.
-"""
-function grade(t::CliffordTensor{R}) where R
-    isempty(t.terms) && throw(ArgumentError(
-        "grade is undefined for the zero element"))
-    gs = unique([length(idx) for idx in keys(t.terms)])
-    length(gs) == 1 || throw(ArgumentError(
-        "grade is undefined for an inhomogeneous element (grades present: $gs)"))
-    gs[1]
+function _clifford_idx_str(space::VectorSpace, idx::Vector{Int})
+    isempty(idx) && return "𝟏"
+    join(string.(space.labels[idx]), "∧")
 end
 
-"""
-    grades(t::CliffordTensor) → Vector{Int}
-
-All grades present in t, sorted.
-"""
-grades(t::CliffordTensor{R}) where R =
-    sort(unique([length(idx) for idx in keys(t.terms)]))
-
-"""
-    homogeneous_component(t, k) → CliffordTensor{R}
-
-Grade-k part of t.
-"""
-function homogeneous_component(t::CliffordTensor{R}, k::Int) where R
-    terms = Dict{Vector{Int}, R}(
-        idx => coef for (idx, coef) in t.terms if length(idx) == k
-    )
-    CliffordTensor{R}(t.metric, terms)
+function Base.show(io::IO, t::CliffordTensor{R}) where R
+    if isempty(t.terms)
+        print(io, "0")
+        return
+    end
+    sorted = sort(collect(t.terms); by = kv -> (length(kv[1]), kv[1]))
+    parts  = String[]
+    for (idx, c) in sorted
+        s = _clifford_idx_str(t.metric.space, idx)
+        if isequal(c, one(R))
+            push!(parts, s)
+        elseif isequal(c, -one(R))
+            push!(parts, "-$s")
+        else
+            push!(parts, "($c)⋅$s")
+        end
+    end
+    print(io, join(parts, " + "))
 end
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -4,11 +4,11 @@ authors = ["Kainaan Riordan <drkainaan@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-# Phase 0-4: zero non-stdlib dependencies.
+# Phase 0-6: zero non-stdlib dependencies in the core.
 
 [weakdeps]
-# Phase 5: Symbolics.jl is a weak dependency.
-# The extension activates automatically when the user does:
+# Symbolics.jl is a weak dependency.  The extension activates automatically when
+# the user does:
 #   using Tensorsmith, Symbolics
 # It has zero impact on users who never load Symbolics.
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"

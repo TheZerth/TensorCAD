@@ -63,4 +63,28 @@ Requires Symbolics.jl.
 """
 function symbolic_clifford_vector end
 
-export symbolic_vars, symbolic_element, symbolic_clifford_vector
+"""
+    symbolic_metric(g::Metric{Rational{BigInt}}) -> Metric{Symbolics.Num}
+
+Lift an exact metric to one whose entries are `Symbolics.Num` so it can be used
+with symbolic Clifford elements.
+
+Requires Symbolics.jl.
+"""
+function symbolic_metric end
+
+"""
+    isequal_simplified(a, b) -> Bool
+
+Decide equality of two Tensorsmith elements whose scalar ring is
+`Symbolics.Num`, canonicalising every coefficient with `Symbolics.expand`
+before comparing.  Structural `==` is insufficient for symbolic coefficients
+because `x + y` and `y + x` are syntactically distinct even though equal.
+
+Requires Symbolics.jl.  For the exact ring `Rational{BigInt}`, ordinary `==`
+is already correct — use that instead.
+"""
+function isequal_simplified end
+
+export symbolic_vars, symbolic_element, symbolic_clifford_vector,
+       symbolic_metric, isequal_simplified

@@ -26,8 +26,10 @@
     @testset "Equality" begin
         @test VectorSpace(3) == VectorSpace(3)
         @test VectorSpace(2) != VectorSpace(3)
-        @test VectorSpace(2, [:x, :y]) != VectorSpace(2, [:e1, :e2])
+        # Equality is dimension-only: labels are cosmetic and do not gate it.
+        @test VectorSpace(2, [:x, :y]) == VectorSpace(2, [:e1, :e2])
         @test VectorSpace(2, [:e1, :e2]) == VectorSpace(2)
+        @test hash(VectorSpace(2, [:x, :y])) == hash(VectorSpace(2))
     end
 
     @testset "Error cases" begin

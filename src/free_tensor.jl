@@ -66,7 +66,7 @@ the grade-0 / scalar component.
 - [`all_grade_k_indices(V, k)`](@ref) — all grade-k multi-indices (n^k of them)
 - [`homogeneous_basis(V, R, k)`](@ref) — corresponding FreeTensor elements
 """
-struct FreeTensor{R}
+struct FreeTensor{R} <: AbstractTensorElement{R}
     space :: VectorSpace
     terms :: Dict{Vector{Int}, R}   # multi-index → coefficient
 
@@ -134,56 +134,14 @@ Base.zero(::Type{FreeTensor{R}}, space::VectorSpace) where R =
 Base.one(::Type{FreeTensor{R}}, space::VectorSpace) where R =
     scalar_element(space, one(R))
 
-# ── Predicates ────────────────────────────────────────────────────────────────
+# ── AbstractTensorElement hooks ────────────────────────────────────────────────
+# iszero, ==, hash, grade, grades, homogeneous_component are inherited from the
+# generic methods in abstract_tensor.jl via these three hooks.
 
-Base.iszero(t::FreeTensor) = isempty(t.terms)
-
-Base.:(==)(a::FreeTensor{R}, b::FreeTensor{R}) where R =
-    a.space == b.space && a.terms == b.terms
-
-Base.hash(t::FreeTensor, h::UInt) = hash(t.terms, hash(t.space, h))
-
-# ── Grading ───────────────────────────────────────────────────────────────────
-
-"""
-    grade(t::FreeTensor) -> Int
-
-The grade of a *homogeneous* element — the common length of all its
-multi-indices.
-
-Throws `ArgumentError` if `t` is the zero element (grade undefined for zero)
-or if `t` is not homogeneous.  Use [`grades(t)`](@ref) to inspect an arbitrary
-element, and [`homogeneous_component`](@ref) to extract a specific grade.
-"""
-function grade(t::FreeTensor{R}) where R
-    isempty(t.terms) &&
-        throw(ArgumentError("grade is undefined for the zero element"))
-    gs = unique([length(idx) for idx in keys(t.terms)])
-    length(gs) == 1 ||
-        throw(ArgumentError(
-            "Element is not homogeneous; grades present: $(sort(gs))"))
-    gs[1]
-end
-
-"""
-    grades(t::FreeTensor) -> Vector{Int}
-
-Sorted list of all grades present in `t`.  Returns `Int[]` for the zero element.
-"""
-grades(t::FreeTensor{R}) where R =
-    sort(unique([length(idx) for idx in keys(t.terms)]))
-
-"""
-    homogeneous_component(t::FreeTensor{R}, k::Int) -> FreeTensor{R}
-
-Extract the grade-`k` part of `t`.  Returns the zero element if `t` has no
-grade-`k` terms.
-"""
-function homogeneous_component(t::FreeTensor{R}, k::Int) where R
-    terms = Dict{Vector{Int}, R}(
-        idx => c for (idx, c) in t.terms if length(idx) == k)
+_eq_key(t::FreeTensor)   = t.space
+base_space(t::FreeTensor) = t.space
+_rebuild(t::FreeTensor{R}, terms::Dict{Vector{Int}, R}) where R =
     FreeTensor{R}(t.space, terms)
-end
 
 # ── Arithmetic ────────────────────────────────────────────────────────────────
 

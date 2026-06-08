@@ -95,14 +95,10 @@ end
 Convert an exact metric to one whose entries are `Symbolics.Num` so it can be
 used with symbolic Clifford elements.
 """
-function symbolic_metric(g::Metric{Rational{BigInt}})
+function Tensorsmith.symbolic_metric(g::Metric{Rational{BigInt}})
     R = Symbolics.Num
     Metric{R}(g.space, R.(g.g))
 end
-
-export symbolic_metric
-
-end # module TensorsmithSymbolicsExt
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Symbolic equality
@@ -129,24 +125,25 @@ that instead.
     prod2 = b * a + a * b
     isequal_simplified(prod1, prod2)  # true
 """
-function isequal_simplified(
+# Dispatching on AbstractTensorElement{Symbolics.Num} covers every element type
+# uniformly — FreeTensor, AlgebraTensor, CliffordTensor, and MixedTensor — since
+# they all expose `terms(x)` (a Dict of multi-index → coefficient).
+function Tensorsmith.isequal_simplified(
     x :: T,
     y :: T,
-) :: Bool where {T <: Union{FreeTensor{Symbolics.Num},
-                             AlgebraTensor{<:Any, Symbolics.Num},
-                             CliffordTensor{Symbolics.Num}}}
-    keys_x = Set(keys(x.terms))
-    keys_y = Set(keys(y.terms))
+) :: Bool where {T <: Tensorsmith.AbstractTensorElement{Symbolics.Num}}
+    # Mixed sparsity (one element lacks a key the other has, meaning a zero
+    # coefficient) is handled by the key-set equality check below.
+    tx = Tensorsmith.terms(x)
+    ty = Tensorsmith.terms(y)
+    keys_x = Set(keys(tx))
+    keys_y = Set(keys(ty))
     keys_x == keys_y || return false
     for k in keys_x
-        diff = Symbolics.expand(x.terms[k] - y.terms[k])
+        diff = Symbolics.expand(tx[k] - ty[k])
         isequal(diff, zero(Symbolics.Num)) || return false
     end
     true
 end
 
-# Also handle mixed sparsity: one element may lack a key the other has
-# (meaning coefficient zero).  The above loop only covers shared keys;
-# the key-set equality check handles the rest.
-
-export isequal_simplified
+end # module TensorsmithSymbolicsExt

@@ -163,7 +163,9 @@ end  # ExteriorAlgebra
         rhs = (q * es2) * (p * es1)
         @test isequal(lhs.terms[[1,2]], p * q)
         @test isequal(rhs.terms[[1,2]], p * q)
-        @test lhs == rhs
+        # Structural `==` cannot decide equality of symbolic coefficients
+        # (`Num == Num` is not a Bool); use the symbolic-equality decision.
+        @test isequal_simplified(lhs, rhs)
     end
 
     @testset "Squaring a generic grade-1 element" begin

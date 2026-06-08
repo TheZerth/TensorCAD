@@ -141,7 +141,7 @@ happens in the constructor and on every product — never afterward.
 - `a * b`                                    — algebra product (normalized)
 - `a ∧ b`                                    — wedge product (Exterior only)
 """
-struct AlgebraTensor{A, R}
+struct AlgebraTensor{A, R} <: AbstractTensorElement{R}
     space :: VectorSpace
     terms :: Dict{Vector{Int}, R}
 
@@ -221,36 +221,15 @@ Base.zero(::Type{AlgebraTensor{A,R}}, space::VectorSpace) where {A,R} =
 Base.one(::Type{AlgebraTensor{A,R}}, space::VectorSpace) where {A,R} =
     alg_scalar(space, one(R), A)
 
-# ── Predicates ────────────────────────────────────────────────────────────────
+# ── AbstractTensorElement hooks ────────────────────────────────────────────────
+# iszero, ==, hash, grade, grades, homogeneous_component are inherited from the
+# generic methods in abstract_tensor.jl.  Grade = multi-index length (in Sym the
+# polynomial degree, in Λ the exterior power).
 
-Base.iszero(t::AlgebraTensor)                               = isempty(t.terms)
-Base.:(==)(a::AlgebraTensor{A,R}, b::AlgebraTensor{A,R}) where {A,R} =
-    a.space == b.space && a.terms == b.terms
-Base.hash(t::AlgebraTensor, h::UInt)                        =
-    hash(t.terms, hash(t.space, h))
-
-# ── Grading ───────────────────────────────────────────────────────────────────
-# Grade = multi-index length (same semantic as FreeTensor).
-# In Sym this is polynomial degree; in Ext this is the exterior power.
-
-function grade(t::AlgebraTensor{A,R}) where {A,R}
-    isempty(t.terms) &&
-        throw(ArgumentError("grade is undefined for the zero element"))
-    gs = unique([length(idx) for idx in keys(t.terms)])
-    length(gs) == 1 ||
-        throw(ArgumentError(
-            "Element is not homogeneous; grades present: $(sort(gs))"))
-    gs[1]
-end
-
-grades(t::AlgebraTensor{A,R}) where {A,R} =
-    sort(unique([length(idx) for idx in keys(t.terms)]))
-
-function homogeneous_component(t::AlgebraTensor{A,R}, k::Int) where {A,R}
-    terms = Dict{Vector{Int}, R}(
-        idx => c for (idx, c) in t.terms if length(idx) == k)
+_eq_key(t::AlgebraTensor)    = t.space
+base_space(t::AlgebraTensor) = t.space
+_rebuild(t::AlgebraTensor{A,R}, terms::Dict{Vector{Int}, R}) where {A,R} =
     AlgebraTensor{A,R}(t.space, terms)
-end
 
 # ── Arithmetic ────────────────────────────────────────────────────────────────
 
