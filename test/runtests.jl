@@ -8,4 +8,5 @@ using Tensorsmith
     include("test_quotient_algebras.jl")
     include("test_clifford.jl")
     include("test_algebra_maps.jl")
+    include("test_symbolics.jl")
 end
