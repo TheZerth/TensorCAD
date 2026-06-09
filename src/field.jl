@@ -22,6 +22,8 @@
 
 A grade-`k` section over a [`BaseSpace`](@ref) `B`: a sparse assignment of fibre
 elements of type `E <: AbstractTensorElement{R}` to the `k`-cells of the base.
+Grades above `top_grade(base)` are permitted only as empty zero fields, which is
+how the topological exterior derivative represents `d` of a top-grade field.
 
 Construct with [`Field`](@ref Field(::BaseSpace, ::Integer, ::Dict)) from an
 explicit `Dict{Int,E}` (cell id → element) or from a function `cell -> element`.
@@ -43,8 +45,13 @@ struct Field{R, E<:AbstractTensorElement{R}, B<:BaseSpace}
 
     function Field{R,E,B}(base::B, grade::Int, values::Dict{Int,E}
                           ) where {R, E<:AbstractTensorElement{R}, B<:BaseSpace}
-        0 <= grade <= top_grade(base) || throw(ArgumentError(
-            "field grade $grade is out of range 0:$(top_grade(base)) for $(typeof(base))"))
+        grade >= 0 || throw(ArgumentError(
+            "field grade must be nonnegative, got $grade"))
+        if grade > top_grade(base) && !isempty(values)
+            throw(ArgumentError(
+                "field grade $grade is above top_grade $(top_grade(base)) for $(typeof(base)); " *
+                "only the empty zero field is valid above the topological dimension"))
+        end
         valid = cells(base, grade)
         for (cid, x) in values
             (cid in valid) || throw(ArgumentError(

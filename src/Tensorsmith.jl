@@ -14,6 +14,7 @@ include("number_systems.jl")
 include("linear_maps.jl")
 include("base_space.jl")
 include("field.jl")
+include("exterior_derivative.jl")
 include("symbolics_stubs.jl")
 
 end # module Tensorsmith
