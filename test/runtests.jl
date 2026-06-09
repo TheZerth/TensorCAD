@@ -11,5 +11,6 @@ using Tensorsmith
     include("test_tensor_calculus.jl")
     include("test_ga_operations.jl")
     include("test_number_systems.jl")
+    include("test_linear_maps.jl")
     include("test_symbolics.jl")
 end

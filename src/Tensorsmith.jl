@@ -11,6 +11,7 @@ include("algebra_maps.jl")
 include("tensor_calculus.jl")
 include("clifford_ops.jl")
 include("number_systems.jl")
+include("linear_maps.jl")
 include("symbolics_stubs.jl")
 
 end # module Tensorsmith
