@@ -12,6 +12,8 @@ include("tensor_calculus.jl")
 include("clifford_ops.jl")
 include("number_systems.jl")
 include("linear_maps.jl")
+include("base_space.jl")
+include("field.jl")
 include("symbolics_stubs.jl")
 
 end # module Tensorsmith

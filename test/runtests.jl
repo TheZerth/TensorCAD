@@ -12,5 +12,7 @@ using Tensorsmith
     include("test_ga_operations.jl")
     include("test_number_systems.jl")
     include("test_linear_maps.jl")
+    include("test_base_space.jl")
+    include("test_field.jl")
     include("test_symbolics.jl")
 end
