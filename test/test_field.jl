@@ -17,6 +17,18 @@ e2  = clifford_basis_vector(clf3, 2)
 e12 = clifford_basis_element(clf3, [1, 2])
 
 # ─────────────────────────────────────────────────────────────────────────────
+@testset "Zero-pruning and semantic equality" begin
+    # A user-supplied Dict containing an explicit zero must be pruned in the
+    # constructor so the stored dict is canonical and equality is semantic.
+    clf_zero = clifford_zero(clf3)
+    f_with_zero  = Field(gb, 0, Dict(1 => e1, 2 => clf_zero))
+    f_without    = Field(gb, 0, Dict(1 => e1))
+    @test length(f_with_zero) == 1          # zero pruned
+    @test f_with_zero == f_without          # semantically equal
+    @test iszero(evaluate(f_with_zero, 2))  # evaluate still returns fibre zero
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
 @testset "Construction & evaluation" begin
     f = Field(gb, 0, Dict(1 => e1, 3 => e2))
     @test field_grade(f) == 0

@@ -552,13 +552,15 @@ function GridBase(nx::Integer, ny::Integer;
 end
 
 # Read a diagonal metric's (p,q,r) signature off its diagonal.
+# Use `iszero` / `isequal(d, one(R))` rather than `==` so this stays safe
+# when R = Symbolics.Num (where `Num == Num` is not a Bool).
 function _signature_of(m::Metric{R}) where R
     p = q = r = 0
     for i in 1:m.space.n
         d = m.g[i, i]
-        if iszero(d);      r += 1
-        elseif d == one(R); p += 1
-        else;              q += 1
+        if iszero(d);                r += 1
+        elseif isequal(d, one(R));   p += 1
+        else;                        q += 1
         end
     end
     (p, q, r)

@@ -31,6 +31,10 @@ pointwise arithmetic `+`, `-`, and scalar `*` is supported.
 
 The field is the *section*; the base is the *bundle* — state here, structure
 there (DESIGN.md §13).
+
+!!! note "Grade-uniform fibre"
+    A field assumes a single fibre element type `E` across all cells of its grade
+    (grade-uniform fibre); heterogeneous-fibre sections are out of scope for L7.
 """
 struct Field{R, E<:AbstractTensorElement{R}, B<:BaseSpace}
     base   :: B
@@ -49,7 +53,11 @@ struct Field{R, E<:AbstractTensorElement{R}, B<:BaseSpace}
                 "the value assigned at cell $cid does not belong to the fibre " *
                 "attached there (wrong element type, metric, or space)"))
         end
-        new{R,E,B}(base, grade, values)
+        # Prune zero entries so the stored dict is always canonical.
+        # This ensures length(fld) == number of nonzero cells and that
+        # two constructions of the same section compare equal.
+        pruned = Dict{Int,E}(cid => x for (cid, x) in values if !iszero(x))
+        new{R,E,B}(base, grade, pruned)
     end
 end
 
@@ -131,8 +139,17 @@ Base.eltype(::Type{Field{R,E,B}}) where {R,E,B} = Pair{Int,E}
 # cellwise with `isequal_simplified(evaluate(a,c), evaluate(b,c))` instead
 # (matching the convention used throughout the codebase).
 
-Base.:(==)(a::Field{R,E,B}, b::Field{R,E,B}) where {R,E,B} =
-    a.base === b.base && a.grade == b.grade && a.values == b.values
+function Base.:(==)(a::Field{R,E,B}, b::Field{R,E,B}) where {R,E,B}
+    a.base === b.base && a.grade == b.grade || return false
+    # Compare over the union of stored keys via evaluate so that a pruned and
+    # an unpruned construction of the same section compare equal.  With
+    # constructor pruning in place both dicts are canonical, but the union-of-keys
+    # form is robust even if a caller somehow bypasses the constructor.
+    for c in union(keys(a.values), keys(b.values))
+        evaluate(a, c) == evaluate(b, c) || return false
+    end
+    return true
+end
 
 # ── Pointwise arithmetic ──────────────────────────────────────────────────────
 
