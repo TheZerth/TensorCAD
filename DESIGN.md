@@ -2,11 +2,13 @@
 
 **Project:** TensorCAD (engine package: `Tensorsmith`)
 **Author:** Kainaan Riordan
-**Status:** Living document · Rev 1.4 · 2026-06-08
+**Status:** Living document · Rev 1.6 · 2026-06-08
 **Rev 1.1:** added §12 (demonstrable-constants example content for L9/L11).
 **Rev 1.2:** added §13 (the `BaseSpace` contract — four obligations + metric as an optional derived capability); resolved Open Decision 1 from §10.
 **Rev 1.3:** added §14 (Potentials are primary, fields are derived) and §15 (the differential-operator arc L8/L8.1/L8.2 + the open L8.1 curvature-representation question).
 **Rev 1.4:** settled the L8.1 transport architecture in §15 — two first-class bundle transports (two-sided geometric + one-sided gauge), not unified; Q from inter-node metric variation, R/T from edge holonomy.
+**Rev 1.5:** added §15.2 (L8.1 output representation — holonomy-of-a-loop primary, R/T/Q as Fields, lossless primitive with derived views).
+**Rev 1.6:** added §16 (geometric objects the visualization layer will want to expose — the dual complex and a deliberate sweep of others; recorded as L11 capabilities, deferred to L11).
 **Purpose of this file:** the north-star. It records *what we are building, why, and — just as importantly — what we are deliberately not building*. Phase prompts and plugin decisions should reference it. When a choice is unclear, the principles and the build-criterion below decide it.
 
 ---
@@ -210,6 +212,42 @@ The L8.1 opening question — how the EM/gauge potential relates to the geometri
 
 **L8.1 interface consequence:** transport is general at the contract level (an invertible fibre map, L7 obligation 4); L8.1 ships *two* realizations — the two-sided `VersorTransport` (already present) and a one-sided gauge/representation transport — and `∇` is written to accept either. Even-subalgebra restriction is a per-realization optimization, never an interface constraint.
 
+### 15.2 L8.1 output representation — SETTLED (Rev 1.5)
+
+How the covariant derivative and the three failure modes are *returned*. Decided so L9 (equations), L10 (simulation), and L11 (visualization) consume a stable, principled shape. Throughline: **every output is a `Field`** over the appropriate grade of cell, so all outputs compose with the L8 operators and arithmetic and render through whatever L11 builds for fields. And the *primitive* stored objects are potential-like (connection, holonomy); the geometric tensors are derived views (§14, one level up).
+
+- **Connection** — the primary stored object: a `Field` over 1-cells (edges) valued in transport maps (the potential, §14). R/T derive from it; it is never derived from them.
+
+- **Holonomy — primitive, lossless, a function of a loop (not a field).** Holonomy is a **function of an oriented, based cycle** (an ordered list of oriented edges) returning the composed transport map. It is **defined on every base, including the bare graph** (which has loops but no faces) — this is the deciding reason it is loop-valued rather than 2-cell-valued: making it a 2-cell field primary would leave curvature *undefined on the QRCS graph substrate*, specializing at the bottom (the recurring §3 error). Subtleties to honor, not paper over: transport composition is **non-abelian**, so the cycle is ordered and oriented (reverse orientation → inverse holonomy); holonomy is basepoint-independent only **up to conjugacy** (different basepoint → conjugate value `gτg⁻¹`), so the **gauge-invariant content is the conjugacy class / its trace** (`Tr(holonomy)`), which is the quantity to expose as the honest invariant.
+
+- **Holonomy field over 2-cells — derived convenience**, available only when `top_grade(b) ≥ 2`: evaluate the loop-function on each face's boundary loop under a fixed orientation/basepoint convention (from the incidence signs + a canonical based vertex). Field *values* are basepoint-convention-dependent; the **trace field is the invariant**. On a bare graph this derived view simply does not exist (no faces), and that is correct.
+
+- **Curvature `R` (bivector) and torsion `T` (vector) — derived FUNCTIONS, never stored.** `curvature`/`torsion` are *pure functions* over the holonomy (the log-extraction of the loop holonomy), returning `Field`s valued in Clifford bivectors (R) / vectors (T). They are **computed on demand, not cached** — caching a derived view would create a coherence/invalidation burden and the state-entanglement §13's bundle-vs-section split exists to avoid. They are **explicitly documented as winding-lossy**: the log of a versor is multivalued (a rotor by θ and by θ+2π share a holonomy), and that winding information is physically real (it is exactly what the Aharonov–Bohm phase depends on). Therefore the **holonomy is canonical and lossless; the extracted tensor is the lossy convenient view** — never the reverse (§14). Materializing a derived view into a stored `Field` is a *caller's* explicit choice (e.g. a simulation snapshotting a timestep, which then owns that data), never a cache the engine maintains.
+
+- **Nonmetricity `Q` — separate, no holonomy.** A `Field` over 1-cells from inter-node metric variation (the L7 local-metric capability evaluated at an edge's two endpoints), valued in a symmetric bilinear-form difference. It does **not** come from the loop machinery (§15.1: edges rotate via transport → R/T; nodes deform via metric → Q). The loop abstraction therefore never has to carry the metric sector.
+
+**Net:** lossless primitive (connection + loop-holonomy), neutral across graph/complex, potentials-primary, edges-rotate/nodes-deform, no hidden cached state, and one container type (`Field`) for every output.
+
+## 16. Geometric Objects for the Visualization Layer (L11) — Capture Now, Build at L11
+
+A visual sandbox must be able to *show* the geometric structures the engine computes, not just their numeric values. Several real geometric objects are currently either discarded after use or never materialized, because no present layer consumes their *geometry* (the operators need only numbers). This section records them so they are deliberate deferrals, not oversights. **Governing rule:** none of these are built now; each becomes an **optional, derived base/field capability** when L11 (visualization) is designed, exposed by the realizations that can provide it, and **none alters an existing operator** (which keep their single, exact-on-grids definitions). Building viewable geometry ahead of the layer that displays it (and ahead of the still-open UI-host decision, §10.2) would risk building it in a shape the UI cannot use.
+
+**16.1 The dual complex (the motivating case).** DEC's Hodge star conceptually maps a primal k-quantity to the corresponding **dual** (n−k)-cell (face-centers, perpendicular dual edges, vertex-surrounding dual faces). On a structured `GridBase` the **diagonal Hodge is exact** — it computes the correct number — but it *discards where that number lives* (the dual cell). That geometric location is exactly what a user wants to see (e.g. a primal-edge voltage and the dual-edge current threading perpendicular through it). Decision: the **Hodge operator stays single and exact-on-grids** (L8.2); the **dual complex becomes a separate optional geometric capability** (`dual_complex(b)` + a trait, returning dual cell positions + incidence) provided at L11 by bases that can build it (structured grid: cheap; bare graph: cannot, says so; future unstructured mesh: circumcentric/Galerkin dual, which *also* unlocks the non-diagonal Hodge for irregular meshes). The dual is geometry, not a second operator — there is no approximate-vs-exact operator fork.
+
+**16.2 Swept inventory — other viewable objects we compute or could derive.** A deliberate pass for structures the viewer will want, each to arrive as an optional derived capability at L11:
+
+- **Tangent/cotangent frames (the vielbein/coframe).** Where a base carries a metric/frame, the local basis vectors per cell are directly viewable (the "rods" of the local geometry). Natural to show as per-cell glyphs.
+- **The metric as an ellipsoid/indicatrix per cell.** The local bilinear form (§13 metric capability) visualizes as a unit-ball ellipsoid (Euclidean) or hyperboloid (Lorentzian) — the most direct way to *see* signature and metric variation, and to see **nonmetricity** as the ellipsoid *changing* cell-to-cell (the "ruler deforming," §15.2).
+- **Transport / holonomy as motion.** The connection (§15.2) is viewable by animating parallel transport of a frame along edges; **holonomy** by showing the frame's failure to return around a loop — the single most intuition-building view for curvature/torsion, and the natural picture for Aharonov–Bohm (the accumulated phase around a loop). Curvature `R` (bivector per 2-cell) renders as an oriented rotation-plane glyph; torsion `T` (vector) as a closure-gap arrow.
+- **Multivector field glyphs by grade.** A `Field`'s values want grade-appropriate glyphs: 0 = scalar (color/height), 1 = vector (arrow), 2 = bivector (oriented plane/disk), 3 = trivector (oriented volume), pseudoscalar (sign/handedness). The EM bivector `F` is the headline case. This is the general "render a Field" primitive L11 needs.
+- **Orientation / handedness.** The incidence-sign orientation (§13 obligation 2) and the pseudoscalar's sign are viewable as consistent cell orientation — needed to read `d`, `⋆`, and chirality correctly.
+- **Cell complex itself + grading.** The primal complex with cells colored/filtered by grade is the base canvas everything else draws on; trivially available from L7 obligation 1.
+- **Loops/cycles as first-class drawable paths.** Since holonomy is loop-primitive (§15.2), an arbitrary cycle (especially on a `GraphBase` with no faces) is a viewable object in its own right — the user will want to *draw a loop* and read its holonomy. This is also the interactive-probe primitive.
+- **Geodesics / integral curves and flows.** Once L8.1 transport and (later) dynamics exist, integral curves of a vector field and geodesics of a connection are viewable paths — the standard "flow" visualization.
+- **Spectra / harmonic structure (later).** The Hodge–Laplacian's kernel (harmonic fields) and spectrum are viewable once L8.2 + an eigensolver exist — the natural way to *see* topology (de Rham/Hodge) in field data; pairs with the §7 persistent-homology analysis tool.
+
+**16.3 Discipline.** Each item above is logged so its current absence is a *recorded deferral*. At L11 they are added as optional capabilities, gated per base, never as changes to L7/L8 operators or the `Field` contract. The build-criterion (§4) still applies: a viewable object enters only when L11 actually renders it, and the UI-host decision (§10.2) is settled first, since it determines the shape the geometry must take.
+
 ---
 
-*End Rev 1.4. Amend deliberately; this file is the tie-breaker.*
+*End Rev 1.6. Amend deliberately; this file is the tie-breaker.*
