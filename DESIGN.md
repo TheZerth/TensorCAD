@@ -2,9 +2,11 @@
 
 **Project:** TensorCAD (engine package: `Tensorsmith`)
 **Author:** Kainaan Riordan
-**Status:** Living document · Rev 1.2 · 2026-06-08
+**Status:** Living document · Rev 1.4 · 2026-06-08
 **Rev 1.1:** added §12 (demonstrable-constants example content for L9/L11).
 **Rev 1.2:** added §13 (the `BaseSpace` contract — four obligations + metric as an optional derived capability); resolved Open Decision 1 from §10.
+**Rev 1.3:** added §14 (Potentials are primary, fields are derived) and §15 (the differential-operator arc L8/L8.1/L8.2 + the open L8.1 curvature-representation question).
+**Rev 1.4:** settled the L8.1 transport architecture in §15 — two first-class bundle transports (two-sided geometric + one-sided gauge), not unified; Q from inter-node metric variation, R/T from edge holonomy.
 **Purpose of this file:** the north-star. It records *what we are building, why, and — just as importantly — what we are deliberately not building*. Phase prompts and plugin decisions should reference it. When a choice is unclear, the principles and the build-criterion below decide it.
 
 ---
@@ -172,6 +174,42 @@ The base space is an **interface**, not a commitment to a fundamental ontology. 
 
 **Scope boundary (per §4).** This section defines the *engine* interface only. The QRCS physical apparatus that motivated parts of it — Weyl-compensated scaling, counter-space/nonmetricity activation, conditional metric "awakening," domain-wall refraction, and the `Cl(3)` dimensional-selection argument — is **Layer-2 physical modeling that runs *on* TensorCAD**, not engine structure. It is framing/hypothesis (§7), with the domain-wall-as-nonmetricity scenario logged as candidate L9/L10 example content. *(Note: the 3D-selection bandwidth argument is suggestive but unproven — the vector/bivector counts scale linearly/quadratically, not "exponentially," and equality-as-stability-condition is asserted, not derived; it stays out of the engine regardless.)*
 
+## 14. Potentials Are Primary; Fields Are Derived
+
+**Principle.** The connection (the *potential*) is a first-class, storable object; field strengths (curvature, and EM field strength) are *derived* from it by holonomy/differentiation — **never the reverse.** The engine must not treat field strength `F` as primary with the potential as a convenient fiction.
+
+**Why.** This is the Aharonov–Bohm-correct, Feynman-preferred stance: AB demonstrates the connection `A` has physical effect (an electron phase shift = the holonomy `∮A·dl` = enclosed flux) in a region where the field strength is identically zero, so the potential carries information the field does not. It is also what the user's experimental electrodynamics requires (potentials as the real objects; fields as a description of their interaction/exchange).
+
+**This is already the L7 architecture, made explicit.** The load-bearing base obligation is `transport` (the connection, `τ_uv`); curvature/torsion/nonmetricity are *computed* by composing transport around loops (§13, obligation 4). In gauge terms the connection is the potential and the holonomy is the field strength. A discrete substrate has no `F` until you take the holonomy of the connection — so the substrate cannot be field-first even if one tried. §14 records this as an intended commitment rather than an accident of L7.
+
+**What this forbids baking in (sandbox neutrality, per §2).** The engine must remain agnostic about — never hardcode — flat metric, metric-compatibility, torsion-freeness, the validity of Green's reciprocity, or field-primacy. The metric-affine generality the user's models need is exactly what L7 already provides (transport is an arbitrary connection; the three failure modes are independently representable; the metric is optional/local). Specific physical claims (e.g. reciprocity breakdown between conductors at very different drift velocities; the metric-affine unification of gravity and EM) are **hypotheses to test in the sandbox, not premises to design into it.**
+
+**A language/physics distinction to keep honest (§4 discipline).** The geometric-algebra form of Maxwell (`∇F = J`) is *mathematically equivalent* to the Heaviside vector-calculus form on standard spacetime — it is a better *language* (unifies the four equations, makes potential and bivector structure manifest), not different *physics*. Genuine physical departures come from added structure (the metric-affine extension), not from "geometric product vs. curl/div." Track which results come from notation and which from new physics.
+
+## 15. The Differential-Operator Arc (L8 / L8.1 / L8.2)
+
+L8 is split into three phases by capability dependency (mapping onto the §13 gates), so topological bugs are never conflated with metric/connection bugs:
+
+- **L8 (Tier 1) — topological, metric-free.** The exterior derivative `d` on cochains/fields and its grade shadows grad/curl/div. Needs only `boundary` (obligation 2); works on *every* base including the bare graph; exact. Definition-of-done: `d² = 0` as a strict operator identity, and discrete Stokes `∫_∂Ω ω = ∫_Ω dω` on a mesh. **`d` and the geometric/vector derivative `∇` are honestly distinct operators on a discrete complex** — `d` takes a boundary, `∇` takes a transport — documented to converge in the continuum limit but never unified in the API (that would be a leaky abstraction hiding discrete reality). The charter's "shadows of one operator" (§7) is a *continuum* statement; it discretizes into two mechanisms.
+- **L8.1 (Tier 2) — geometric, needs `transport`.** The covariant derivative `∇`, and extraction of curvature/torsion/nonmetricity. Per §14, the connection (potential) is the primary stored object. **Two failure modes come from transport, one does not** (see §15.1): **curvature `R` and torsion `T` are derived from loop holonomy** of the edge-connection (a quantity evaluated on 2-cells / faces), while **nonmetricity `Q` is *not* carried by transport at all** — it is the inter-node variation of the local metric (§13 metric capability), measured along an edge. Versor-conjugation transport is metric-preserving by construction, so it *cannot* carry `Q`; forcing it to would require a shearing (non-orthogonal) map that breaks the Clifford relation `v² = η(v,v)` across the edge. Edges rotate (R/T); nodes deform (Q).
+- **L8.2 (Tier 3) — needs `can_hodge` (both metric + dual complex).** Hodge star `⋆`, codifferential `δ`, Hodge–Laplacian `Δ = dδ + δd`. Gated by design — does not exist on the bare graph. This tier makes Maxwell-as-`∇F = J` and the plane-EM-wave demo expressible; that demo is the **final boss of the differential arc** (definition-of-done for L8.2), not L8.
+
+### 15.1 L8.1 transport architecture — SETTLED (Rev 1.4)
+
+The L8.1 opening question — how the EM/gauge potential relates to the geometric connection — is **resolved in favor of two distinct, first-class transports, not a unification.** The decision and its reasoning:
+
+**Two transport kinds, on distinct bundles over the same base:**
+- **Geometric / frame transport — two-sided (conjugation).** The spin connection is a *bivector*-valued generator; transport is `M ↦ τ M τ⁻¹` with `τ = exp(B)` a versor (this is L7's `VersorTransport`). It must be two-sided because it has to preserve grade and the quadratic form. Its loop holonomy yields curvature `R` and torsion `T`.
+- **Gauge transport — one-sided (representation action).** A gauge connection (e.g. U(1)) acts on a charged section by `ψ ↦ exp(iθ) ψ`. This is a connection on a *principal* bundle, a structurally different object: U(1) is an abelian circle group, not a rotation plane, so its one-sided action is correct, not a wart to be unified away.
+
+**Why not unify them into a single Clifford fibre (the rejected option).** Putting the EM potential `A` in as a grade-1 object in the *same* algebra and forcing it through conjugation does not deliver real unification: a grade-1 vector does not naturally generate a phase by conjugation, so every route to make it (pseudoscalar `exp(Iθ)`, Kaluza–Klein lift, or a bespoke non-conjugation action) either reintroduces a one-sided action under a Clifford costume, smuggles in an unobservable dimension (KK — rejected per §2), or builds a bespoke mechanism we'd own entirely. The "single arena" would be nominal; the two objects would still act by different rules. Bivector-rotation and U(1)-phase are *different groups*; honest geometry keeps them distinct.
+
+**Why this does not betray potential-primacy (§14).** A gauge connection one-form on a principal bundle is itself a *primary, physical* object — Aharonov–Bohm is literally its holonomy. Potential-primacy is satisfied by **either** architecture, so it does not force unification. The real, narrower choice is only whether U(1) phase is represented honestly as a circle (separate bundle) or awkwardly embedded as a not-quite-rotation in the geometric algebra.
+
+**Sandbox-neutrality is the deciding factor (§2).** Hardcoding "EM is a grade-1 sector of the unified Clifford fibre" would bake the user's extended-ED *hypothesis* into the substrate. The neutral engine supports **both** transport kinds as composable mechanisms; whether EM is "really" a separate U(1) or "really" a grade-1 sector of the geometric algebra then becomes a **model built and compared on top of the engine**, not a decision frozen into it. The unified-fibre EM remains a legitimate research construction at the model layer — and the open research question there is what *non-conjugation* action a grade-1 potential has on a state and whether it is consistent — but it is not the L8.1 interface.
+
+**L8.1 interface consequence:** transport is general at the contract level (an invertible fibre map, L7 obligation 4); L8.1 ships *two* realizations — the two-sided `VersorTransport` (already present) and a one-sided gauge/representation transport — and `∇` is written to accept either. Even-subalgebra restriction is a per-realization optimization, never an interface constraint.
+
 ---
 
-*End Rev 1.2. Amend deliberately; this file is the tie-breaker.*
+*End Rev 1.4. Amend deliberately; this file is the tie-breaker.*
