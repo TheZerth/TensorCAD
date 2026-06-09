@@ -25,12 +25,22 @@ struct Metric{R}
         n = space.n
         size(g) == (n, n) || throw(ArgumentError(
             "Metric matrix size $(size(g)) does not match space dimension $n"))
+        # `isequal`, not `==`: over a symbolic ring (R = Symbolics.Num) `==`
+        # returns a symbolic expression, which cannot be used in a boolean
+        # context. `isequal` decides structural equality and returns a Bool.
         for i in 1:n, j in i+1:n
-            g[i,j] == g[j,i] || throw(ArgumentError(
+            isequal(g[i,j], g[j,i]) || throw(ArgumentError(
                 "Metric matrix is not symmetric: g[$i,$j]=$(g[i,j]) ≠ g[$j,$i]=$(g[j,i])"))
         end
         new(space, Matrix{R}(g))
     end
+
+    # Unchecked internal constructor: the caller guarantees `g` is square and
+    # symmetric.  Used by `inverse_metric`, whose result is symmetric by
+    # construction but whose symbolic entries may be structurally (not literally)
+    # equal across the diagonal, which would trip a re-validation spuriously.
+    Metric{R}(space::VectorSpace, g::Matrix{R}, ::Val{:unchecked}) where R =
+        new(space, g)
 end
 
 # ─────────────────────────────────────────────────────────────────────────────

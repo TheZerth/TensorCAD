@@ -28,6 +28,13 @@ using Symbolics
 # constants (e.g. 1//6 is representable), so antisymmetrize and symmetrize work.
 Tensorsmith.contains_rationals(::Type{Symbolics.Num}) = true
 
+# Symbolics.Num supports sqrt and the trig/hyperbolic functions symbolically, so
+# `magnitude` (sqrt-gated) and `rotor_exp` (transcendental-gated) are available
+# over it.  Note rotor_exp additionally branches on the sign of B², which is only
+# decidable when that scalar is concrete.
+Tensorsmith.has_sqrt(::Type{Symbolics.Num})            = true
+Tensorsmith.has_transcendentals(::Type{Symbolics.Num}) = true
+
 # ─────────────────────────────────────────────────────────────────────────────
 # symbolic_vars
 

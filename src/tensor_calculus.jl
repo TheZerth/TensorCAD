@@ -328,6 +328,11 @@ otherwise an `ArgumentError` is thrown.  In the sparse representation the
 equals its index at slot `b`, and the surviving term is that term with both
 slots removed.
 
+Like the other variance-dependent operations ([`lower`](@ref), [`raise`](@ref),
+[`trace`](@ref)), `contract` needs a well-defined slot structure and so throws
+`ArgumentError` on the zero tensor (whose variance pattern is undefined) — even
+though the contraction of zero is "morally" zero.
+
 # Example
 ```julia
 V = VectorSpace(3)
@@ -429,7 +434,12 @@ is degenerate (`det g = 0`, i.e. signature `r > 0`), since then `gⁱʲ` does no
 exist.  The result is symmetric, like `g`.
 """
 function inverse_metric(g::Metric{R}) where R
-    Metric{R}(g.space, _matrix_inverse(g.g))
+    # The adjugate of a symmetric matrix is symmetric, so the inverse is too;
+    # use the unchecked constructor to skip re-validation.  This matters over a
+    # symbolic ring, where the cofactor expressions for `inv[i,j]` and
+    # `inv[j,i]` are mathematically equal but may not be *structurally* equal,
+    # which an `isequal` symmetry check would reject spuriously.
+    Metric{R}(g.space, _matrix_inverse(g.g), Val(:unchecked))
 end
 
 # ── Musical isomorphisms (need the metric) ────────────────────────────────────

@@ -9,6 +9,8 @@ include("metric.jl")
 include("clifford.jl")
 include("algebra_maps.jl")
 include("tensor_calculus.jl")
+include("clifford_ops.jl")
+include("number_systems.jl")
 include("symbolics_stubs.jl")
 
 end # module Tensorsmith

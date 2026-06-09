@@ -78,4 +78,31 @@ not satisfy this predicate is a programming error and will throw.
 contains_rationals(::Type{<:Rational}) = true
 contains_rationals(::Type)             = false
 
-export ExactRing, contains_rationals
+"""
+    has_sqrt(::Type{R}) -> Bool
+
+Return `true` if the scalar ring `R` supports `sqrt`.  Exact rings such as
+`Rational{BigInt}` do **not** (`sqrt(2//1)` is irrational and leaves the ring),
+so operations that take a square root — notably [`magnitude`](@ref) — are gated
+on this predicate and otherwise throw.  `Float64`, `Complex`, and (via the
+extension) `Symbolics.Num` satisfy it.
+"""
+has_sqrt(::Type)                  = false
+has_sqrt(::Type{<:AbstractFloat}) = true
+has_sqrt(::Type{<:Complex})       = true
+
+"""
+    has_transcendentals(::Type{R}) -> Bool
+
+Return `true` if the scalar ring `R` supports the transcendental functions
+`sqrt`, `sin`, `cos`, `sinh`, `cosh`.  Required by the closed-form rotor
+exponential [`rotor_exp`](@ref); the exact ring `Rational{BigInt}` does not
+satisfy it (a general rotor `cos θ + …` is irrational), so use the exact,
+in-ring [`rotor_exp_series`](@ref) there instead.  `Float64` and (via the
+extension) `Symbolics.Num` satisfy it.
+"""
+has_transcendentals(::Type)                  = false
+has_transcendentals(::Type{<:AbstractFloat}) = true
+has_transcendentals(::Type{<:Complex})       = true
+
+export ExactRing, contains_rationals, has_sqrt, has_transcendentals

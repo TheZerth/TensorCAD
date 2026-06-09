@@ -295,5 +295,33 @@ else
             @test isequal_simplified(contract(identity_tensor(Vs, S), 1, 2),
                                      mixed_scalar(Vs, S(3)))
         end
+
+        @testset "Metric{Num} from the matrix constructor (symbolic entries)" begin
+            # The symmetry check must not choke on symbolic entries: `==` on Num
+            # is not a Bool, so the constructor must compare with `isequal`.
+            ga = Symbolics.variable(:ga)
+            gb = Symbolics.variable(:gb)
+            gc = Symbolics.variable(:gc)
+            V2s = VectorSpace(2)
+            gM  = Metric{S}(V2s, S[ga gb; gb gc])      # would throw under `==`
+            ginv = inverse_metric(gM)
+            @test ginv isa Metric{S}
+            # g · g⁻¹ = I, entrywise, after symbolic simplification
+            for i in 1:2, j in 1:2
+                s = sum(gM.g[i,k] * ginv.g[k,j] for k in 1:2)
+                @test isequal(Symbolics.simplify(s - (i == j ? one(S) : zero(S))),
+                              zero(S))
+            end
+        end
+
+        @testset "symbolic 3×3 inverse: no spurious asymmetry on re-validation" begin
+            # The cofactor expressions for inv[i,j] and inv[j,i] are equal but
+            # not structurally identical; the unchecked constructor in
+            # inverse_metric must not reject the (symmetric) inverse.
+            m = [Symbolics.variable(Symbol(:m, i)) for i in 1:6]
+            V3s = VectorSpace(3)
+            g3  = Metric{S}(V3s, S[m[1] m[2] m[3]; m[2] m[4] m[5]; m[3] m[5] m[6]])
+            @test inverse_metric(g3) isa Metric{S}
+        end
     end
 end
