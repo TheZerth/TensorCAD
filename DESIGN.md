@@ -2,8 +2,9 @@
 
 **Project:** TensorCAD (engine package: `Tensorsmith`)
 **Author:** Kainaan Riordan
-**Status:** Living document · Rev 1.1 · 2026-06-08
+**Status:** Living document · Rev 1.2 · 2026-06-08
 **Rev 1.1:** added §12 (demonstrable-constants example content for L9/L11).
+**Rev 1.2:** added §13 (the `BaseSpace` contract — four obligations + metric as an optional derived capability); resolved Open Decision 1 from §10.
 **Purpose of this file:** the north-star. It records *what we are building, why, and — just as importantly — what we are deliberately not building*. Phase prompts and plugin decisions should reference it. When a choice is unclear, the principles and the build-criterion below decide it.
 
 ---
@@ -134,7 +135,7 @@ Two roles, both supported: as **emergent sub-algebras** inside a Clifford algebr
 
 ## 10. Open Architectural Decisions
 
-1. **Base-space / bundle abstraction** — the next real architectural choice (how coordinates/grids/graphs are specified; how the fibre attaches). Design as an interface from the outset, since fields, DEC, connections, and most plugins hang off it. Note: QRCS-style models are literally a Clifford bundle over a graph, so the bundle abstraction must cover manifold, grid, *and* graph bases.
+1. **Base-space / bundle abstraction** — **RESOLVED (see §13).** The base is an *interface* with four obligations plus an optional metric capability; manifold, DEC grid, and Clifford-bundle-over-graph are swappable realizations. What remains is the three-case pressure test and the implementation prompt.
 2. **UI host** — Julia-native (Pluto/Makie) vs. a web front end driving a Julia kernel. Still open; affects the visualization-plugin surface most.
 3. **How far into differential geometry before UI** — a GA/tensor *explorer* could ship on the algebraic core first, with connections/curvature added behind it later.
 4. **Plugin framework timing** — formalize after L7 stabilizes (§8).
@@ -154,6 +155,23 @@ A recurring idea worth capturing *as scoped example content, not as machinery*: 
 
 **Boundary (do not let this re-inflate):** the broader thesis these came wrapped in — "number arises from distinction; transcendental constants are transport laws; bits are one projection of richer informational primitives" — is a **framing**, filed under §7 "not built." It is interpretive, not an object the engine implements, and the build-criterion (§4) excludes it. Three caveats keep the framing honest if it ever resurfaces: (1) transcendence is *field-relative* (π is algebraic over ℚ(π)), so it is not an intrinsic ontological property; (2) **mathematical** constants (`e, π, φ, i` — dimensionless, necessary) must never be silently grouped with **physical** ones (`c, ℏ, G` — dimensionful, contingent, unit-artifact values); (3) Shannon's bit already *is* the unit of distinguishability, so geometric structure is a richer *carrier*, not evidence that "information isn't bits." Only the operationally-defined, demonstrable characterizations above enter the system — as L9/L11 example content, adding no new machinery.
 
+## 13. The `BaseSpace` Contract (L7)
+
+The base space is an **interface**, not a commitment to a fundamental ontology. A smooth charted manifold, a DEC cell complex / grid, and a Clifford-bundle-over-graph (the QRCS case) are all *equal, swappable realizations* of one contract. Committing the foundation to any single one (cells-first or manifold-first) would repeat the GASmith error of specializing at the bottom (§3, §11) and would stop the tool from being a neutral instrument for testing models that assume the *other* — so neither is primary. Fields live *over* the base; fibres (Clifford or tensor elements) live *in* the fibre attached at each cell.
+
+**Four obligations** (the minimum `∇`, `d`, and field transport are written against):
+
+1. **Cell enumeration by grade.** The base exposes its cells indexed by dimension (0-cells/nodes, 1-cells/edges, 2-cells/faces, … up to top). A *k-field* assigns fibre elements to k-cells. A graph may stop at 1-cells; a grid/manifold provides the full complex.
+2. **Signed incidence / boundary.** For each k-cell, the (k−1)-cells that bound it, **with orientation carried as ±1 signs**. This operator *is* the discrete exterior derivative `d` (the coboundary is the transpose of incidence), so `d` — and grad/curl/div as its grade shadows — come for free on any base that implements it. **Orientation is folded in here, not a separate obligation:** orientation only ever acts through these signs; a non-orientable complex is handled by a base honestly reporting that consistent signs are unavailable, not by a parallel orientation system.
+3. **Fibre attachment.** A rule assigning to each cell the fibre algebra it carries (uniform `Cl(3)` for QRCS; tangent/cotangent spaces for a manifold). The fibre is one of the existing element types — this connects L7 to L0–L5.
+4. **Transport along a 1-cell.** A map carrying a fibre element across an edge between endpoint frames (QRCS's `τ_uv`; a manifold's parallel transport; a discrete connection). This is what `∇` is written against. Composing transport around a closed loop is what makes the **three failure modes measurable**: rotational holonomy = curvature `R`, translational closure failure = torsion `T`, magnitude drift = nonmetricity `Q`. These three are the independent pieces of a general affine connection, available on *any* base implementing transport.
+
+**One optional capability — the metric.** The metric is **not** a peer obligation; it is an optional, *derived*, *local* capability. A base declares `has_metric` (parallel to the existing `has_sqrt` / `has_transcendentals` traits, §6/Phase 7) and, if true, provides a method returning the **bilinear form per cell/region** plus a **declared signature**. Rationale, with three independent votes: NCG isolates the Dirac operator `𝒟`, DEC isolates `d` from the Hodge star `⋆`, SDG keeps smooth structure logical rather than metric — and QRCS's own account treats the metric as a coarse-grained quantity *derived from* transport and edge weights, not a primitive. Consequences: metric-free operators (`d`, incidence, the natural pairing/contraction) work on every base; metric-dependent operators (`⋆`, `δ`, raising/lowering, magnitude) require `has_metric`. The metric is **local** (per cell/region), so a metric *gradient* between regions is representable — the one genuinely structural nugget from the QRCS domain-wall material (a boundary between metric regions *is* nonmetricity `∇g ≠ 0`). **Signature is base-declarable** (the Lorentzian `(+,−,−,−)` of spacetime is as valid as Euclidean), reusing the existing `Cl(p,q,r)` signature support.
+
+**Deliberately excluded from the contract** (so the one interface serves all three cases): global coordinates (manifold-only; a graph has no embedding) and any primitive global distance (always emergent from weights/transport, never supplied). A *causal poset* base (via the Alexandrov-topology specialization preorder) is a plausible **fourth realization** for later, behind manifold/grid/graph.
+
+**Scope boundary (per §4).** This section defines the *engine* interface only. The QRCS physical apparatus that motivated parts of it — Weyl-compensated scaling, counter-space/nonmetricity activation, conditional metric "awakening," domain-wall refraction, and the `Cl(3)` dimensional-selection argument — is **Layer-2 physical modeling that runs *on* TensorCAD**, not engine structure. It is framing/hypothesis (§7), with the domain-wall-as-nonmetricity scenario logged as candidate L9/L10 example content. *(Note: the 3D-selection bandwidth argument is suggestive but unproven — the vector/bivector counts scale linearly/quadratically, not "exponentially," and equality-as-stability-condition is asserted, not derived; it stays out of the engine regardless.)*
+
 ---
 
-*End Rev 1.1. Amend deliberately; this file is the tie-breaker.*
+*End Rev 1.2. Amend deliberately; this file is the tie-breaker.*
