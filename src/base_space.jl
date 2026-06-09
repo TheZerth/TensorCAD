@@ -349,9 +349,13 @@ fibre_matches(d::TensorFibre{R}, x::MixedTensor{R}) where R =
 A transport map realized as Clifford versor conjugation `x ↦ V x V⁻¹` (the
 shipped [`transport`](@ref) realization, used by all three concrete bases).
 
-The one-argument constructor computes `V⁻¹` via [`inv_mv`](@ref) (so `versor`
-must be a versor/blade; a non-versor throws).  Callable on a `CliffordTensor` in
-the same algebra; composes with `∘` and reverses with `inv`:
+The one-argument constructor computes `V⁻¹` by ring regime.  Exact rings use
+[`inv_mv`](@ref), including its exact two-sided inverse verification.  Floating
+numeric rings (`AbstractFloat` and `Complex{<:AbstractFloat}`) use the standard
+versor formula `V⁻¹ = Ṽ / ⟨V Ṽ⟩₀` directly, then verify the two-sided identity
+up to tolerance `sqrt(eps(R))` (or the corresponding real component tolerance for
+complex floats), throwing on null or genuine non-versor inputs.  Callable on a
+`CliffordTensor` in the same algebra; composes with `∘` and reverses with `inv`:
 
   - `(t)(x)            = V x V⁻¹`
   - `inv(t)            = VersorTransport(V⁻¹, V)`            (reverse transport)
@@ -365,20 +369,40 @@ struct VersorTransport{R}
     inverse :: CliffordTensor{R}
 end
 
-function _transport_versor_inverse(v::CliffordTensor{R}) where R
-    try
-        return inv_mv(v)
-    catch err
-        # Closed-form Float64 rotors satisfy R*~R == 1 only up to roundoff, while
-        # inv_mv verifies exact scalar one.  For transcendental numeric rings use
-        # the standard versor inverse formula without the exact Bool check.
-        if has_transcendentals(R)
-            ss = scalar_square(v)
-            iszero(ss) && rethrow(err)
-            return (one(R) / ss) * reversion(v)
-        end
-        rethrow(err)
+_transport_numeric_inverse_ring(::Type{R}) where R =
+    R <: AbstractFloat || R <: Complex{<:AbstractFloat}
+
+_transport_inverse_tolerance(::Type{R}) where R =
+    R <: AbstractFloat ? sqrt(eps(R)) :
+    R <: Complex ? sqrt(eps(typeof(real(one(R))))) : 0.0
+
+function _is_scalar_one_approx(x::CliffordTensor{R}, tol) where R
+    scalar = get(x.terms, Int[], zero(R))
+    abs(scalar - one(R)) <= tol || return false
+    for (idx, coef) in x.terms
+        isempty(idx) && continue
+        abs(coef) <= tol || return false
     end
+    return true
+end
+
+function _transport_numeric_versor_inverse(v::CliffordTensor{R}) where R
+    ss = scalar_square(v)
+    tol = _transport_inverse_tolerance(R)
+    abs(ss) <= tol && throw(ArgumentError(
+        "scalar_square(V) is numerically zero within tolerance $tol; the versor " *
+        "transport inverse is undefined for null inputs"))
+    cand = (one(R) / ss) * reversion(v)
+    (_is_scalar_one_approx(v * cand, tol) && _is_scalar_one_approx(cand * v, tol)) ||
+        throw(ArgumentError(
+            "V is not a versor within tolerance $tol; numeric VersorTransport " *
+            "requires V*V⁻¹ and V⁻¹*V to be scalar 1"))
+    cand
+end
+
+function _transport_versor_inverse(v::CliffordTensor{R}) where R
+    _transport_numeric_inverse_ring(R) && return _transport_numeric_versor_inverse(v)
+    inv_mv(v)
 end
 
 VersorTransport(v::CliffordTensor{R}) where R = VersorTransport{R}(v, _transport_versor_inverse(v))

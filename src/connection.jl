@@ -18,7 +18,8 @@
 #   * Curvature and torsion are 2-cell Field-valued convenience views derived
 #     from face holonomy.  Curvature is explicitly winding-lossy (a rotor log is
 #     multivalued); holonomy remains the canonical observable.  Nonmetricity is
-#     separate: a 1-cell Field of inter-node metric variation, not holonomy.
+#     separate: a matrix-valued 1-cell MetricVariationField of inter-node metric
+#     variation, not holonomy.
 
 # ── One-sided gauge / representation transport ───────────────────────────────
 
@@ -72,10 +73,74 @@ Base.:(==)(a::GaugeTransport{R}, b::GaugeTransport{R}) where R =
 
 Base.hash(g::GaugeTransport, h::UInt) = hash(g.multiplier, hash(g.inverse, h))
 
-# Transport maps are not additive field values; they have no zero map in this
-# interface.  Treat them as non-prunable when stored in derived Field views.
-Base.iszero(::VersorTransport) = false
-Base.iszero(::GaugeTransport) = false
+# ── Dedicated non-tensor derived-view containers ─────────────────────────────
+
+"""
+    HolonomyField{R,T,B}
+
+A lightweight derived view over 2-cells whose values are transport maps (`T`,
+e.g. [`VersorTransport`](@ref) or [`GaugeTransport`](@ref)), not fibre tensor
+elements.  It intentionally is **not** a [`Field`](@ref): L7 `Field`s remain
+sections valued in `AbstractTensorElement`s.  Use [`evaluate`](@ref) / `hf[cell]`
+to read the face holonomy map, or call [`holonomy`](@ref) directly on a loop.
+"""
+struct HolonomyField{R,T,B<:BaseSpace}
+    base    :: B
+    grade   :: Int
+    values  :: Dict{Int,T}
+    default :: T
+end
+
+HolonomyField(base::B, values::Dict{Int,T}, default::T) where {B<:BaseSpace,T} =
+    HolonomyField{_transport_ring(default),T,B}(base, 2, values, default)
+
+"""
+    MetricVariationField{R,B}
+
+A lightweight matrix-valued edge view for nonmetricity `Q`.  Values are
+`Matrix{R}` differences of local metric bilinear forms, so this is not a fibre
+`Field`.  Access mirrors `Field`: [`evaluate`](@ref) / `q[edge]`, iteration over
+stored nonzero entries, and `field_grade(q) == 1`.
+"""
+struct MetricVariationField{R,B<:BaseSpace}
+    base    :: B
+    grade   :: Int
+    values  :: Dict{Int,Matrix{R}}
+    default :: Matrix{R}
+end
+
+MetricVariationField(base::B, values::Dict{Int,Matrix{R}}, default::Matrix{R}) where {R,B<:BaseSpace} =
+    MetricVariationField{R,B}(base, 1, values, default)
+
+function evaluate(hf::HolonomyField{R,T,B}, cell::Integer) where {R,T,B}
+    c = Int(cell)
+    haskey(hf.values, c) ? hf.values[c] : hf.default
+end
+
+function evaluate(q::MetricVariationField{R,B}, cell::Integer) where {R,B}
+    c = Int(cell)
+    haskey(q.values, c) ? q.values[c] : q.default
+end
+
+Base.getindex(hf::HolonomyField, cell::Integer) = evaluate(hf, cell)
+Base.getindex(q::MetricVariationField, cell::Integer) = evaluate(q, cell)
+
+field_grade(hf::HolonomyField) = hf.grade
+field_grade(q::MetricVariationField) = q.grade
+
+for T in (:HolonomyField, :MetricVariationField)
+    @eval begin
+        Base.length(x::$T) = length(x.values)
+        Base.keys(x::$T) = keys(x.values)
+        Base.values(x::$T) = Base.values(x.values)
+        Base.pairs(x::$T) = pairs(x.values)
+        Base.haskey(x::$T, c::Integer) = haskey(x.values, Int(c))
+        Base.iterate(x::$T, st...) = iterate(x.values, st...)
+    end
+end
+
+Base.eltype(::Type{HolonomyField{R,T,B}}) where {R,T,B} = Pair{Int,T}
+Base.eltype(::Type{MetricVariationField{R,B}}) where {R,B} = Pair{Int,Matrix{R}}
 
 # ── Oriented edge parsing and common transport helpers ────────────────────────
 
@@ -102,11 +167,6 @@ _transport_multiplier(t::VersorTransport) = t.versor
 _transport_multiplier(t::GaugeTransport)  = t.multiplier
 
 _scalar_part(A::CliffordTensor{R}) where R = get(A.terms, Int[], zero(R))
-
-function _derived_field(::Type{R}, base::B, grade::Integer, values::Dict{Int,E},
-                        default::E) where {R,E,B<:BaseSpace}
-    Field{R,E,B}(base, Int(grade), values, default, false)
-end
 
 # ── Holonomy: primitive loop observable ───────────────────────────────────────
 
@@ -146,17 +206,24 @@ end
 """
     holonomy_trace(b::BaseSpace, loop) -> scalar
 
-Conjugacy-invariant scalar content of [`holonomy`](@ref).
+Scalar invariant extracted from [`holonomy`](@ref), with transport-kind-specific
+meaning.
 
-For the shipped Clifford-valued transports this is the grade-0/scalar part of the
-transport multiplier (`V` for two-sided versor transport, `U` for one-sided gauge
-transport).  The full holonomy depends on the ordered based loop and changes by
-conjugation under rebasing; this scalar trace is the gauge/basepoint invariant.
+For a geometric [`VersorTransport`](@ref), this returns the grade-0 coefficient
+of the composed versor multiplier `V` (for a simple rotor `cos θ + B sin θ`, this
+is `cos θ`).  It is the scalar part of the versor, not the matrix trace of the
+conjugation operator `M ↦ V M V⁻¹`.  For a one-sided [`GaugeTransport`](@ref), it
+returns the grade-0 coefficient of the composed gauge multiplier `U`, i.e. the
+phase/representation scalar carried by the one-sided action.
+
+The full holonomy depends on the ordered based loop and changes by conjugation
+under rebasing; these scalar multiplier parts are invariant under that rebasing
+for the shipped Clifford-valued transport realizations.
 """
 holonomy_trace(b::BaseSpace, loop) = _scalar_part(_transport_multiplier(holonomy(b, loop)))
 
 """
-    holonomy_field(b::BaseSpace) -> Field
+    holonomy_field(b::BaseSpace) -> HolonomyField
 
 Derived convenience view over 2-cells: evaluate [`holonomy`](@ref) on each face's
 signed boundary loop using the base's boundary order as the canonical orientation
@@ -164,9 +231,11 @@ and basepoint convention.
 
 This exists only for bases with `top_grade(b) ≥ 2`; on a graph/bare 1-complex it
 throws an informative `ArgumentError`, because the primitive holonomy is loop-
-valued and graph-valid, while this face field is merely a lossy/convention-fixed
-view.  Field values are basepoint-convention-dependent transport maps; their
-traces are the invariant content.
+valued and graph-valid, while this face view is merely convention-fixed.  The
+returned [`HolonomyField`](@ref) is not a fibre [`Field`](@ref): its values are
+transport maps, not `AbstractTensorElement`s.  The face maps themselves are
+basepoint-convention-dependent; [`holonomy_trace`](@ref) gives the invariant
+scalar content.
 """
 function holonomy_field(b::B) where {B<:BaseSpace}
     top_grade(b) >= 2 || throw(ArgumentError(
@@ -180,7 +249,7 @@ function holonomy_field(b::B) where {B<:BaseSpace}
     for f in fs[2:end]
         vals[Int(f)] = holonomy(b, boundary(b, 2, f))::T
     end
-    _derived_field(_transport_ring(first_h), b, 2, vals, first_h)
+    HolonomyField(b, vals, first_h)
 end
 
 # ── Derived curvature and torsion views ───────────────────────────────────────
@@ -228,11 +297,22 @@ _rotor_bivector_log(t::GaugeTransport) = throw(ArgumentError(
 Derived curvature view over 2-cells, valued in Clifford bivectors.
 
 For each face, this computes the face holonomy and extracts a bivector generator
-`B` such that the holonomy rotor is locally `rotor_exp(B)`.  This extraction is
-**winding-lossy and multivalued**: rotors with angles differing by `2π` have the
-same holonomy.  The holonomy returned by [`holonomy`](@ref) is therefore the
-canonical lossless object; `curvature` is only a convenient derived Field and is
-never cached.
+`B` such that the holonomy rotor is locally `rotor_exp(B)` when that extraction is
+in scope.  This extraction has three deliberate limitations:
+
+  1. It is **winding-lossy and multivalued**: rotors with angles differing by
+     `2π` have the same holonomy.
+  2. Only simple single-plane rotors are supported by the closed-form extractor;
+     compound/multi-plane rotors throw an `ArgumentError`.  Use [`holonomy`](@ref)
+     directly for the lossless primitive in that case.
+  3. On exact rings (for example `Rational{BigInt}`) there is no closed-form
+     transcendental logarithm in the ring, so `curvature` returns the in-ring
+     first-order bivector part of the holonomy multiplier, not a true rotor log.
+     Use a transcendental-capable numeric ring (for example `Float64`) for the
+     closed-form single-plane logarithm.
+
+The holonomy returned by [`holonomy`](@ref) is therefore the canonical lossless
+object; `curvature` is only a convenient derived Field and is never cached.
 
 Requires `top_grade(b) ≥ 2`; use [`holonomy`](@ref) directly on graph loops.
 """
@@ -321,7 +401,7 @@ function torsion(b::B) where {B<:BaseSpace}
 end
 
 """
-    nonmetricity(b::BaseSpace) -> Field
+    nonmetricity(b::BaseSpace) -> MetricVariationField
 
 Separate nonmetricity view over 1-cells from inter-node metric variation.
 
@@ -331,10 +411,12 @@ For an oriented edge `u → v`, this returns the symmetric bilinear-form differe
 Q[e] = metric(b, 0, v).g - metric(b, 0, u).g
 ```
 
-as a matrix-valued `Field` over edges.  This does **not** use holonomy: per
-DESIGN.md §15.1/§15.2, R/T come from edge-loop transport, while Q comes from
-node/local metric variation.  Requires `has_metric(b) == true`; a bare graph
-throws the documented capability-gating `ArgumentError`.
+as a dedicated matrix-valued [`MetricVariationField`](@ref) over edges.  It is
+not a fibre [`Field`](@ref), because a raw bilinear-form matrix is not an
+`AbstractTensorElement`.  This view does **not** use holonomy: per DESIGN.md
+§15.1/§15.2, R/T come from edge-loop transport, while Q comes from node/local
+metric variation.  Requires `has_metric(b) == true`; a bare graph throws the
+documented capability-gating `ArgumentError`.
 """
 function nonmetricity(b::B) where {B<:BaseSpace}
     has_metric(b) || throw(ArgumentError(
@@ -351,9 +433,10 @@ function nonmetricity(b::B) where {B<:BaseSpace}
         diff = metric(b, 0, head).g - metric(b, 0, tail).g
         iszero(diff) || (vals[Int(e)] = diff)
     end
-    _derived_field(R, b, 1, vals, default)
+    MetricVariationField(b, vals, default)
 end
 
 export GaugeTransport, identity_gauge_transport,
+       HolonomyField, MetricVariationField,
        holonomy, holonomy_trace, holonomy_field,
        curvature, torsion, nonmetricity
