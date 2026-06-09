@@ -5,7 +5,7 @@
 
 > A focused, interactive environment for exploring algebras of geometric quantities and the calculus of how those quantities change.
 
-TensorCAD is an exact computational multilinear algebra engine. Built around the free tensor algebra $T(V)$ and its quotients (symmetric, exterior, Clifford), the engine acts as a neutral instrument for testing models across varied base spaces—from smooth manifolds to discrete cell complexes. 
+TensorCAD is an exact computational multilinear algebra engine. Built around the free tensor algebra $T(V)$ and its quotients (symmetric, exterior, Clifford), the engine acts as a neutral instrument for testing models across varied base spaces; from smooth manifolds to discrete cell complexes. 
 
 It is designed to model **emergent structures** natively. By isolating base space transport from a derived metric, the system captures phenomena like **nonmetricity** within general metric-affine geometry directly through its foundational operations.
 
