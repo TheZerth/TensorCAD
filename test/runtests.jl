@@ -15,5 +15,6 @@ using Tensorsmith
     include("test_base_space.jl")
     include("test_field.jl")
     include("test_exterior_derivative.jl")
+    include("test_covariant.jl")
     include("test_symbolics.jl")
 end

@@ -365,7 +365,23 @@ struct VersorTransport{R}
     inverse :: CliffordTensor{R}
 end
 
-VersorTransport(v::CliffordTensor{R}) where R = VersorTransport{R}(v, inv_mv(v))
+function _transport_versor_inverse(v::CliffordTensor{R}) where R
+    try
+        return inv_mv(v)
+    catch err
+        # Closed-form Float64 rotors satisfy R*~R == 1 only up to roundoff, while
+        # inv_mv verifies exact scalar one.  For transcendental numeric rings use
+        # the standard versor inverse formula without the exact Bool check.
+        if has_transcendentals(R)
+            ss = scalar_square(v)
+            iszero(ss) && rethrow(err)
+            return (one(R) / ss) * reversion(v)
+        end
+        rethrow(err)
+    end
+end
+
+VersorTransport(v::CliffordTensor{R}) where R = VersorTransport{R}(v, _transport_versor_inverse(v))
 
 """
     identity_transport(metric::Metric{R}) -> VersorTransport{R}

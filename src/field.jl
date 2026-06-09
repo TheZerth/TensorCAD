@@ -20,8 +20,13 @@
 """
     Field{R, E, B}
 
-A grade-`k` section over a [`BaseSpace`](@ref) `B`: a sparse assignment of fibre
-elements of type `E <: AbstractTensorElement{R}` to the `k`-cells of the base.
+A grade-`k` section over a [`BaseSpace`](@ref) `B`: ordinarily a sparse
+assignment of fibre elements of type `E <: AbstractTensorElement{R}` to the
+`k`-cells of the base.  L8 derived views (holonomy maps and nonmetricity
+matrices) also use this container shape with fibre validation disabled by their
+constructors, so every differential-operator output can still be returned as a
+`Field` while ordinary user-facing field construction remains fibre-checked.
+
 Grades above `top_grade(base)` are permitted only as empty zero fields, which is
 how the topological exterior derivative represents `d` of a top-grade field.
 
@@ -38,13 +43,20 @@ there (DESIGN.md §13).
     A field assumes a single fibre element type `E` across all cells of its grade
     (grade-uniform fibre); heterogeneous-fibre sections are out of scope for L7.
 """
-struct Field{R, E<:AbstractTensorElement{R}, B<:BaseSpace}
+struct Field{R, E, B<:BaseSpace}
     base   :: B
     grade  :: Int
     values :: Dict{Int, E}
+    default :: Union{Nothing,E}
 
     function Field{R,E,B}(base::B, grade::Int, values::Dict{Int,E}
-                          ) where {R, E<:AbstractTensorElement{R}, B<:BaseSpace}
+                          ) where {R, E, B<:BaseSpace}
+        Field{R,E,B}(base, grade, values, nothing, true)
+    end
+
+    function Field{R,E,B}(base::B, grade::Int, values::Dict{Int,E},
+                          default::Union{Nothing,E}, validate_fibre::Bool
+                          ) where {R, E, B<:BaseSpace}
         grade >= 0 || throw(ArgumentError(
             "field grade must be nonnegative, got $grade"))
         if grade > top_grade(base) && !isempty(values)
@@ -56,15 +68,26 @@ struct Field{R, E<:AbstractTensorElement{R}, B<:BaseSpace}
         for (cid, x) in values
             (cid in valid) || throw(ArgumentError(
                 "cell id $cid is not a grade-$grade cell of the base"))
-            fibre_matches(fibre(base, grade, cid), x) || throw(ArgumentError(
-                "the value assigned at cell $cid does not belong to the fibre " *
-                "attached there (wrong element type, metric, or space)"))
+            if validate_fibre
+                fibre_matches(fibre(base, grade, cid), x) || throw(ArgumentError(
+                    "the value assigned at cell $cid does not belong to the fibre " *
+                    "attached there (wrong element type, metric, or space)"))
+            end
         end
         # Prune zero entries so the stored dict is always canonical.
         # This ensures length(fld) == number of nonzero cells and that
         # two constructions of the same section compare equal.
-        pruned = Dict{Int,E}(cid => x for (cid, x) in values if !iszero(x))
-        new{R,E,B}(base, grade, pruned)
+        pruned = Dict{Int,E}(cid => x for (cid, x) in values if !_field_iszero(x))
+        new{R,E,B}(base, grade, pruned, default)
+    end
+end
+
+function _field_iszero(x)
+    try
+        return iszero(x)
+    catch err
+        err isa MethodError || rethrow(err)
+        return false
     end
 end
 
@@ -122,6 +145,7 @@ is the field's element parameter `E` (type-stable; recovered by dispatch on the
 function evaluate(fld::Field{R,E,B}, cell::Integer) where {R,E,B}
     c = Int(cell)
     haskey(fld.values, c) && return fld.values[c]
+    fld.default !== nothing && return fld.default::E
     return zero_fibre(fibre(fld.base, fld.grade, c))::E
 end
 
