@@ -20,7 +20,7 @@ _hcoeff(A, idx) = get(A.terms, idx, zero(eltype(A.metric.g)))
     @test_throws ArgumentError codifferential(graph, Field(graph, 0, Dict(1 => clifford_one(m))))
     @test_throws ArgumentError hodge_laplacian(graph, Field(graph, 0, Dict(1 => clifford_one(m))))
 
-    @test (@inferred hodge_star(grid, f0)) isa Field{R,CliffordTensor{R},typeof(grid)}
+    @test (@inferred hodge_star(grid, f0)) isa HodgeDualField{R,CliffordTensor{R},typeof(grid)}
     @test hodge_star(grid, hodge_star(grid, f0)) == f0
     @test hodge_star(grid, hodge_star(grid, f1)) == -f1
     @test hodge_star(grid, hodge_star(grid, f2)) == f2
@@ -33,6 +33,35 @@ _hcoeff(A, idx) = get(A.terms, idx, zero(eltype(A.metric.g)))
     @test hodge_star(lgrid, hodge_star(lgrid, l0)) == -l0
     @test hodge_star(lgrid, hodge_star(lgrid, l1)) == l1
     @test hodge_star(lgrid, hodge_star(lgrid, l2)) == -l2
+end
+
+@testset "Hodge star uses GridBase dual correspondence, not primal id reuse" begin
+    grid = GridBase(2, 2)
+    m = grid.metric
+
+    for k in 0:2
+        @test dual_n_cells(grid, k) == n_cells(grid, 2 - k)
+        targets = [dual_cell(grid, k, c) for c in cells(grid, k)]
+        @test length(targets) == n_cells(grid, k)
+        @test all(1 <= t <= dual_n_cells(grid, 2 - k) for t in targets)
+    end
+
+    # A vertex field crosses grades 0→dual-2.  The last vertex has id 9 while
+    # the primal grid has only 4 faces, so a correct Hodge cannot be reusing
+    # primal face ids or dropping out-of-range cells.
+    f0 = Field(grid, 0, Dict(9 => clifford_one(m)))
+    hf0 = hodge_star(grid, f0)
+    @test hf0 isa HodgeDualField{R,CliffordTensor{R},typeof(grid)}
+    @test field_grade(hf0) == 2
+    @test haskey(hf0, dual_cell(grid, 0, 9))
+    @test dual_cell(grid, 0, 9) > n_cells(grid, 2)
+    @test hodge_star(grid, hf0) == f0
+
+    for k in 0:2
+        fld = Field(grid, k, Dict(c => R(c) * clifford_one(m) for c in cells(grid, k)))
+        expected_sign = isodd(k * (2 - k)) ? -one(R) : one(R)
+        @test hodge_star(grid, hodge_star(grid, fld)) == expected_sign * fld
+    end
 end
 
 @testset "Codifferential and Hodge-Laplacian identities" begin

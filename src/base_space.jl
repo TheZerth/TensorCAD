@@ -636,6 +636,49 @@ signature(b::GridBase) = b.sig
 
 has_dual_complex(::GridBase) = true
 
+"""
+    dual_n_cells(b::GridBase, k::Integer) -> Int
+
+Number of cells in the **dual** `k`-cell index set of a structured grid.
+
+This is an additive L8.2 operator-structure query: it does not alter the primal
+`cells`/`n_cells`/`boundary` incidence of [`GridBase`](@ref).  On an
+`n = top_grade(b)` cubical grid, dual `k`-cells correspond combinatorially to
+primal `(n-k)`-cells, so the counts are the primal counts mirrored by grade.
+
+This is only the dual **correspondence/enumeration** needed by the Hodge star.
+Dual volumes are unit for the shipped orthogonal unit grid, and dual geometric
+positions are deliberately deferred to the L11 visualization layer.
+"""
+function dual_n_cells(b::GridBase, k::Integer)
+    kk = Int(k)
+    0 <= kk <= top_grade(b) || return 0
+    n_cells(b, top_grade(b) - kk)
+end
+
+"""
+    dual_cell(b::GridBase, k::Integer, cell::Integer) -> Int
+
+The dual `(n-k)`-cell id corresponding to primal `k`-cell `cell`, where
+`n = top_grade(b)`.  Dual ids live in their **own** grade-indexed dual cell set,
+not in the primal `(n-k)` ids; for example, on a 2×2 grid the ninth vertex maps
+to dual face id 9 even though the primal grid has only four faces.
+
+The structured-grid correspondence is exact, total, and involutive when paired
+with the mirrored dual grade: applying the same combinatorial id across the dual
+partner returns to the original primal cell.  This supplies operator structure
+for `⋆` without constructing dual volumes or dual geometric positions.
+"""
+function dual_cell(b::GridBase, k::Integer, cell::Integer)
+    kk = Int(k)
+    c = Int(cell)
+    0 <= kk <= top_grade(b) || throw(ArgumentError(
+        "dual_cell grade $kk is outside 0:$(top_grade(b)) for $(typeof(b))"))
+    1 <= c <= n_cells(b, kk) || throw(ArgumentError(
+        "primal grade-$kk cell id $c out of range 1:$(n_cells(b, kk))"))
+    c
+end
+
 # =============================================================================
 # REALIZATION 3 — ManifoldChartBase (minimal charted base with a connection)
 # =============================================================================
@@ -732,6 +775,7 @@ export BaseSpace,
        top_grade, cells, n_cells, boundary,
        fibre, transport,
        has_metric, metric, signature, has_dual_complex, can_hodge,
+       dual_n_cells, dual_cell,
        FibreDescriptor, CliffordFibre, TensorFibre,
        fibre_eltype, zero_fibre, one_fibre, fibre_matches,
        VersorTransport, identity_transport,

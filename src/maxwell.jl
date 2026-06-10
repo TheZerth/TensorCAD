@@ -1,8 +1,8 @@
 # ── Phase L8.2: Maxwell assembly from potential-first field strength ─────────
 #
 # This file does not add new physics machinery.  It packages the L8/L8.2
-# operators into the standard exterior-calculus Maxwell checks on a `GridBase`:
-# F = dA (potential primary), dF = 0 by d² = 0, and δF = J.
+# operators into exterior-calculus Maxwell checks on a `GridBase`: F = dA
+# (potential primary), dF = 0 by d² = 0, and δF = J.
 
 """
     electromagnetic_field(A::Field) -> Field
@@ -51,41 +51,62 @@ iszero_field(ω::Field) = length(ω) == 0
     PlaneWaveDemo
 
 Return record for [`plane_wave_demo`](@ref): a potential `A`, derived field
-`F = dA`, and the three source-free residuals `dF`, `δF`, and `ΔF`.
+`F = dA`, residuals `dF`, `δF`, `ΔF`, and the discrete standing-mode eigenvalue
+`λ` such that `ΔF ≈ λF`.
 """
-struct PlaneWaveDemo{A,F,D,C,L}
+struct PlaneWaveDemo{A,F,D,C,L,V}
     A :: A
     F :: F
     dF :: D
     deltaF :: C
     laplacianF :: L
+    eigenvalue :: V
     potential_first :: Bool
 end
 
 """
     plane_wave_demo(grid::GridBase) -> PlaneWaveDemo
 
-A minimal source-free Maxwell validation on a `GridBase`, assembled
-potential-first.  L8.2 does not implement time stepping or a rendered wave; those
-belong to L10/L11.  This routine uses a nonzero affine pure-mode potential
-`A(v) = (x(v)+y(v))e₁` on vertices.  Its derived field `F = dA` is the constant
-1-cochain `e₁` on every grid edge: a discrete harmonic/source-free mode satisfying
-`dF = 0`, `δF = 0`, and `ΔF = 0` exactly on the orthogonal grid.
+A non-constant oscillatory standing-mode validation on a `GridBase`, assembled
+potential-first.  L8.2 does not implement time stepping or rendering; this is a
+static discrete operator check.
+
+For a floating-point unit grid, choose the Neumann path eigenmode
+
+```julia
+A(i,j) = cos(π*(i+1/2)/(nx+1))
+```
+
+on vertices and derive `F = dA`.  The field varies cell-to-cell, satisfies
+`dF = d²A = 0` exactly, and satisfies the non-vacuous discrete eigenrelation
+`ΔF = λF` with
+
+```julia
+λ = -2 + 2cos(π/(nx+1)).
+```
+
+The codifferential `δF` is generally a nonzero source for this standing mode;
+source-free `δF=0` remains checked separately by [`source_free_maxwell`](@ref)
+when appropriate.
 """
 function plane_wave_demo(grid::GridBase)
     _require_hodge(grid, "plane_wave_demo")
     m = grid.metric
     R = eltype(m.g)
-    e1 = clifford_basis_vector(m, 1)
+    R <: AbstractFloat || throw(ArgumentError(
+        "plane_wave_demo uses an oscillatory cosine mode and requires an AbstractFloat grid metric"))
+    N = grid.nx + 1
     vertex_coord(v) = begin
         z = Int(v) - 1
         width = grid.nx + 1
         (z % width, z ÷ width)
     end
     A = Field(grid, 0, Dict{Int,CliffordTensor{R}}(
-        c => R(sum(vertex_coord(c))) * e1 for c in cells(grid, 0)))
+        c => clifford_scalar(m, R(cos(pi * (vertex_coord(c)[1] + 0.5) / N)))
+        for c in cells(grid, 0)))
     F = electromagnetic_field(A)
-    PlaneWaveDemo(A, F, d(F), codifferential(grid, F), hodge_laplacian(grid, F), true)
+    λ = R(-2 + 2cos(pi / N))
+    PlaneWaveDemo(A, F, d(F), codifferential(grid, F), hodge_laplacian(grid, F), λ, true)
 end
 
 export electromagnetic_field, maxwell_bianchi, maxwell_current,
