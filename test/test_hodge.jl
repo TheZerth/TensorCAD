@@ -64,6 +64,81 @@ end
     end
 end
 
+_hodge_scalar(A) = get(A.terms, Int[], zero(eltype(A.metric.g)))
+
+function _edge_orientation_and_local(b::GridBase, e::Integer)
+    nh = b.nx * (b.ny + 1)
+    ee = Int(e)
+    if ee <= nh
+        z = ee - 1
+        (:h, z % b.nx, z ÷ b.nx)
+    else
+        z = ee - nh - 1
+        (:v, z % (b.nx + 1), z ÷ (b.nx + 1))
+    end
+end
+
+function _dual_edge_orientation(b::GridBase, de::Integer)
+    dual_nh = (b.nx + 1) * b.ny
+    Int(de) <= dual_nh ? :h : :v
+end
+
+function _dual_incidence_coeffs_from_d(b::GridBase, source_dual_grade::Int, source_cell::Int)
+    m = b.metric
+    η = HodgeDualField(b, source_dual_grade, Dict(source_cell => clifford_one(m)))
+    dη = d(η)
+    Dict(c => _hodge_scalar(x) for (c, x) in dη.values)
+end
+
+@testset "GridBase cubical dual correspondence incidence consistency" begin
+    for grid in (GridBase(1, 1), GridBase(2, 2), GridBase(3, 2))
+        # Totality/bijectivity from primal k-cells to the complementary dual grade.
+        for k in 0:2
+            target_dual_grade = 2 - k
+            targets = [dual_cell(grid, k, c) for c in cells(grid, k)]
+            @test sort(targets) == collect(1:dual_n_cells(grid, target_dual_grade))
+        end
+
+        # Perpendicularity: primal horizontal edges map to vertical dual edges;
+        # primal vertical edges map to horizontal dual edges.
+        for e in cells(grid, 1)
+            orient, _, _ = _edge_orientation_and_local(grid, e)
+            dual_orient = _dual_edge_orientation(grid, dual_cell(grid, 1, e))
+            @test (orient, dual_orient) in ((:h, :v), (:v, :h))
+        end
+
+        # Vertex/dual-face boundary is transpose of primal edge boundary.
+        for v in cells(grid, 0)
+            expected = Dict{Int,R}()
+            for e in cells(grid, 1)
+                for (face, sign) in boundary(grid, 1, e)
+                    face == v && (expected[dual_cell(grid, 1, e)] = R(sign))
+                end
+            end
+            for de in 1:dual_n_cells(grid, 1)
+                actual = get(_dual_incidence_coeffs_from_d(grid, 1, de), dual_cell(grid, 0, v), zero(R))
+                @test actual == get(expected, de, zero(R))
+            end
+        end
+
+        # Dual-edge boundary is transpose of primal face boundary, including
+        # boundary edges with exactly one adjacent primal face.
+        for e in cells(grid, 1)
+            expected = Dict{Int,R}()
+            for f in cells(grid, 2)
+                for (face, sign) in boundary(grid, 2, f)
+                    face == e && (expected[dual_cell(grid, 2, f)] = R(sign))
+                end
+            end
+            @test length(expected) in (1, 2)
+            for dv in 1:dual_n_cells(grid, 0)
+                actual = get(_dual_incidence_coeffs_from_d(grid, 0, dv), dual_cell(grid, 1, e), zero(R))
+                @test actual == get(expected, dv, zero(R))
+            end
+        end
+    end
+end
+
 @testset "Codifferential and Hodge-Laplacian identities" begin
     grid = GridBase(1, 1)
     m = grid.metric

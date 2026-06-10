@@ -195,8 +195,11 @@ Exterior derivative on dual cochains.  The dual incidence is derived from the
 primal signed boundary and the `dual_cell` correspondence, not from independent
 dual geometry.  If a dual grade-`l` cell corresponds to a primal `(n-l)` cell,
 then a target dual `(l+1)` cell corresponds to a primal `(n-l-1)` cell; its
-coboundary sum scans the primal cofaces whose boundary contains that cell with
-the primal incidence sign.
+coboundary sum scans the primal cofaces whose boundary contains that cell.  The
+sign is exactly the primal incidence sign: if `(face, s)` occurs in
+`boundary(b, primal_source_grade, coface)`, then the dual source cell contributes
+`s` to the dual target cell.  Boundary primal cells therefore produce one-sided
+dual boundary terms rather than being dropped.
 """
 function d(η::HodgeDualField{R,E,B}) where {R,E<:CliffordTensor{R},B<:BaseSpace}
     b = η.base

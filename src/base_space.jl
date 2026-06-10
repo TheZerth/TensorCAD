@@ -656,6 +656,31 @@ function dual_n_cells(b::GridBase, k::Integer)
     n_cells(b, top_grade(b) - kk)
 end
 
+# Grid id decode/encode helpers used only by the additive dual correspondence.
+# These intentionally mirror the constructor formulas without changing the
+# existing primal `cells`/`boundary` storage.
+_grid_nh(b::GridBase) = b.nx * (b.ny + 1)
+_grid_nv(b::GridBase) = (b.nx + 1) * b.ny
+_grid_dual_nh(b::GridBase) = _grid_nv(b)  # dual horizontal edges cross primal verticals
+
+function _grid_decode_edge(b::GridBase, edge::Integer)
+    e = Int(edge)
+    nh = _grid_nh(b)
+    if e <= nh
+        z = e - 1
+        return (:h, z % b.nx, z ÷ b.nx)
+    else
+        z = e - nh - 1
+        return (:v, z % (b.nx + 1), z ÷ (b.nx + 1))
+    end
+end
+
+_grid_dual_eid_h(b::GridBase, i::Integer, j::Integer) =
+    Int(i) + Int(j) * (b.nx + 1) + 1
+
+_grid_dual_eid_v(b::GridBase, i::Integer, j::Integer) =
+    _grid_dual_nh(b) + Int(i) + Int(j) * b.nx + 1
+
 """
     dual_cell(b::GridBase, k::Integer, cell::Integer) -> Int
 
@@ -664,10 +689,14 @@ The dual `(n-k)`-cell id corresponding to primal `k`-cell `cell`, where
 not in the primal `(n-k)` ids; for example, on a 2×2 grid the ninth vertex maps
 to dual face id 9 even though the primal grid has only four faces.
 
-The structured-grid correspondence is exact, total, and involutive when paired
-with the mirrored dual grade: applying the same combinatorial id across the dual
-partner returns to the original primal cell.  This supplies operator structure
-for `⋆` without constructing dual volumes or dual geometric positions.
+For grade 1 this is the real cubical perpendicular crossing: a primal horizontal
+edge `eid_h(i,j)` maps to the vertical dual edge at the shifted crossing, and a
+primal vertical edge `eid_v(i,j)` maps to the horizontal dual edge.  The dual
+1-cell index space is therefore horizontal-dual edges first (crossing primal
+verticals), followed by vertical-dual edges (crossing primal horizontals).  This
+is a total bijection from primal k-cells to complementary dual `(n-k)` cells; it
+supplies operator structure for `⋆` without constructing dual volumes or dual
+geometric positions.
 """
 function dual_cell(b::GridBase, k::Integer, cell::Integer)
     kk = Int(k)
@@ -676,6 +705,13 @@ function dual_cell(b::GridBase, k::Integer, cell::Integer)
         "dual_cell grade $kk is outside 0:$(top_grade(b)) for $(typeof(b))"))
     1 <= c <= n_cells(b, kk) || throw(ArgumentError(
         "primal grade-$kk cell id $c out of range 1:$(n_cells(b, kk))"))
+    if kk == 1
+        orient, i, j = _grid_decode_edge(b, c)
+        return orient === :h ? _grid_dual_eid_v(b, i, j) : _grid_dual_eid_h(b, i, j)
+    end
+    # Dual vertices mirror primal faces and dual faces mirror primal vertices;
+    # their ids are in separate dual grade spaces even when the integer label is
+    # the same as the mirrored primal label.
     c
 end
 

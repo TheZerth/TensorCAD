@@ -13,7 +13,7 @@ function _field_relation_error(a::Field, λ, b::Field)
             for c in cells(a.base, field_grade(a)))
 end
 
-@testset "Maxwell: potential-first field strength and known nonzero source" begin
+@testset "Maxwell: potential-first grade-crossing field and known nonzero source" begin
     grid = GridBase(1, 1)
     m = grid.metric
     e1 = clifford_basis_vector(m, 1)
@@ -21,6 +21,9 @@ end
     A = Field(grid, 1, Dict(1 => e1))
     F = electromagnetic_field(A)
     @test F == d(A)
+    @test field_grade(F) == 2
+    @test field_grade(hodge_star(grid, F)) == 0
+    @test hodge_star(grid, F) isa HodgeDualField{R,CliffordTensor{R},typeof(grid)}
     @test length(maxwell_bianchi(A)) == 0
 
     expected_J = Field(grid, 1, Dict(
