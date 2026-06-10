@@ -17,6 +17,8 @@ include("field.jl")
 include("exterior_derivative.jl")
 include("connection.jl")
 include("covariant.jl")
+include("hodge.jl")
+include("maxwell.jl")
 include("symbolics_stubs.jl")
 
 end # module Tensorsmith
