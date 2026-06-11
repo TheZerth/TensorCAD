@@ -3,7 +3,7 @@ uuid = "76de2e0b-704b-43d8-99b4-e1f809ecc2c8"
 version = "0.1.0"
 authors = ["Kainaan Riordan <drkainaan@gmail.com>"]
 
-[deps]
+[weakdeps]
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [extensions]
