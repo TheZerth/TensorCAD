@@ -2,7 +2,7 @@
 
 **Project:** TensorCAD (engine package: `Tensorsmith`)
 **Author:** Kainaan Riordan
-**Status:** Living document · Rev 1.8 · 2026-06-08
+**Status:** Living document · Rev 2.0 · 2026-06-08
 **Rev 1.1:** added §12 (demonstrable-constants example content for L9/L11).
 **Rev 1.2:** added §13 (the `BaseSpace` contract — four obligations + metric as an optional derived capability); resolved Open Decision 1 from §10.
 **Rev 1.3:** added §14 (Potentials are primary, fields are derived) and §15 (the differential-operator arc L8/L8.1/L8.2 + the open L8.1 curvature-representation question).
@@ -11,6 +11,8 @@
 **Rev 1.6:** added §16 (geometric objects the visualization layer will want to expose — the dual complex and a deliberate sweep of others; recorded as L11 capabilities, deferred to L11).
 **Rev 1.7:** corrected §16.1 — the dual **correspondence** is operator structure (needed for `⋆` now), distinct from dual **volumes** (unit on grids) and dual **geometry/positions** (L11). Earlier bundling was too aggressive and produced a fictitious-index Hodge bug in L8.2.
 **Rev 1.8:** refined §16.1 — the dual correspondence entails **dual-cell enumeration** + a **dual-cochain container** (`HodgeDualField`), because primal and dual cell counts differ; `⋆` outputs a dual cochain, `δ`/`Δ` return to primal `Field`s. Still short of dual geometry/positions (L11).
+**Rev 1.9:** added §15.3 — the L8.2 `dual_cell` shipped as an involutive **placeholder** (identity-on-id), geometrically real only at the self-dual grade; the true cubical dual correspondence (perpendicular edge-crossing + dual-boundary = primal-coboundary transpose) is its own phase **L8.3**.
+**Rev 2.0:** **The differential-operator arc (L8/L8.1/L8.2/L8.3) is COMPLETE and externally verified.** §15.3 updated: L8.3 (`d513a04`) implemented the real cubical dual correspondence; an independent verification script confirmed it against first-principles DEC geometry (60 incidence checks across `GridBase(2,2)` and asymmetric `GridBase(3,2)`, plus 6 sign-law checks across Euclidean/Lorentzian) — all match. The engine now computes recognizable electromagnetism (`F = dA`, `dF = 0`, grade-crossing `δF = J`). Next: L9/L10/L11 and the §10.2 UI-host decision, now due.
 **Purpose of this file:** the north-star. It records *what we are building, why, and — just as importantly — what we are deliberately not building*. Phase prompts and plugin decisions should reference it. When a choice is unclear, the principles and the build-criterion below decide it.
 
 ---
