@@ -19,6 +19,7 @@ include("connection.jl")
 include("covariant.jl")
 include("hodge.jl")
 include("maxwell.jl")
+include("inner_product.jl")
 include("blackboard.jl")
 include("symbolics_stubs.jl")
 
