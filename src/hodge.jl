@@ -232,11 +232,19 @@ end
     codifferential(b::BaseSpace, ω::Field) -> Field
     δ(b, ω) -> Field
 
-Hodge adjoint of the exterior derivative: for a primal grade-`k` field over an
-`n = top_grade(b)` base,
+Hodge adjoint of the exterior derivative.  **The contract is definitional, not
+formulaic (DESIGN.md §15.4, L8.2.1): `δ` *is* the adjoint of `d` under the
+diagonal Hodge inner product, on every signature** —
 
 ```julia
-δω = (-1)^(n*(k+1)+1) ⋆ d ⋆ ω
+⟨d(α), β⟩ == ⟨α, δ(β)⟩    # exactly, for every grade transition
+```
+
+The sign formula is implementation.  For a primal grade-`k` field over an
+`n = top_grade(b)` base with `q` negative metric directions,
+
+```julia
+δω = (-1)^(n*(k+1)+q) ⋆ d ⋆ ω
 ```
 
 where the first `⋆` maps to a [`HodgeDualField`](@ref), `d` uses the dual
@@ -245,14 +253,38 @@ returns to a primal [`Field`](@ref).  This maps `k`-fields to `(k-1)`-fields for
 `k > 0`; on 0-fields it returns the zero 0-field.  This is the genuine
 metric/dual-complex divergence operator that Tier 1 explicitly did not provide.
 Requires `can_hodge(b) == true`.
+
+!!! note "Sign-convention provenance (§15.4 import caveat)"
+    The `(-1)^(n(k+1)+q)` exponent is **pinned by the adjointness contract
+    against this engine's `⋆` branch** on the shipped 2-grid, not transplanted
+    from a textbook.  The star-square law `⋆⋆ = (-1)^(k(n-k)+q)` provably
+    underdetermines `⋆`'s per-grade sign branch, and the engine's
+    [`hodge_star`](@ref) branch (the `A I⁻¹` complement of clifford_ops.jl,
+    externally verified in L8.3) differs from the common textbook
+    normalization — so any δ/⋆ sign formula imported from the literature must
+    be re-checked against the engine's branch, never transplanted.  The
+    historical exponent `n(k+1)+1` made `δ = -dᵀ` on Euclidean signature
+    (adjointness failing by a global sign); the L9.1 adjointness check caught
+    it and L8.2.1 corrected it.
+
+!!! note "Natural boundary condition"
+    The dual-complex `d` retains the one-sided dual boundary contributions
+    (it is the exact transpose of the primal signed incidence), so `δ` is the
+    *full* incidence transpose up to the value maps, and adjointness holds
+    **exactly everywhere on an open grid, boundary cells included**.  The
+    continuum boundary term `∮ α∧⋆β` does not leak numerically; it reappears
+    as the implicit **natural (Neumann-type) boundary condition** this
+    transpose-based `δ` commits to.  Alternative boundary conditions are a
+    future dedicated phase.
 """
 function codifferential(b::B, ω::Field{R,E,B}) where {R,E<:CliffordTensor{R},B<:BaseSpace}
     _require_hodge(b, "codifferential")
     k = field_grade(ω)
     k == 0 && return Field{R,E,B}(b, 0, Dict{Int,E}())
     n = top_grade(b)
+    q = signature(b)[2]
     s = hodge_star(b, d(hodge_star(b, ω)))
-    isodd(n * (k + 1) + 1) ? -s : s
+    isodd(n * (k + 1) + q) ? -s : s
 end
 
 const δ = codifferential
@@ -269,6 +301,14 @@ Hodge–de Rham Laplacian
 
 Requires `can_hodge(b) == true`.  On 0-fields this reduces to the scalar
 Laplacian `δd`; harmonic fields are the kernel of `Δ`.
+
+Because `δ` is the pairing-adjoint of `d` (the L8.2.1 definitional contract),
+`Δ` satisfies `⟨α, Δα⟩ = ⟨dα, dα⟩ + ⟨δα, δα⟩` exactly and is therefore
+**positive-semidefinite on Euclidean bases** — the geometer's (Hodge) sign.
+The analyst's Laplacian `∇²` is its negative: eigenvalues of `Δ` on the
+Euclidean grid are `+2 - 2cos(...)`-form, ≥ 0.  (Before L8.2.1 the engine
+shipped the analyst's sign while claiming the Hodge Laplacian — see
+DESIGN.md §15.4.)
 """
 function hodge_laplacian(b::B, ω::Field{R,E,B}) where {R,E<:CliffordTensor{R},B<:BaseSpace}
     _require_hodge(b, "hodge_laplacian")

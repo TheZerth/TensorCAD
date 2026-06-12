@@ -82,8 +82,14 @@ on vertices and derive `F = dA`.  The field varies cell-to-cell, satisfies
 `ΔF = λF` with
 
 ```julia
-λ = -2 + 2cos(π/(nx+1)).
+λ = 2 - 2cos(π/(nx+1)).
 ```
+
+The eigenvalue is **positive**: `Δ = dδ + δd` with the pairing-adjoint `δ`
+(L8.2.1) is positive-semidefinite on Euclidean bases.  The historical value
+`λ = -2 + 2cos(π/(nx+1))` was the analyst's-sign Laplacian produced by the
+pre-L8.2.1 codifferential sign (`δ = -dᵀ` on Euclidean); the sign flip here is
+the re-baseline mandated by DESIGN.md §15.4, not a change to the mode.
 
 The codifferential `δF` is generally a nonzero source for this standing mode;
 source-free `δF=0` remains checked separately by [`source_free_maxwell`](@ref)
@@ -105,7 +111,7 @@ function plane_wave_demo(grid::GridBase)
         c => clifford_scalar(m, R(cos(pi * (vertex_coord(c)[1] + 0.5) / N)))
         for c in cells(grid, 0)))
     F = electromagnetic_field(A)
-    λ = R(-2 + 2cos(pi / N))
+    λ = R(2 - 2cos(pi / N))
     PlaneWaveDemo(A, F, d(F), codifferential(grid, F), hodge_laplacian(grid, F), λ, true)
 end
 

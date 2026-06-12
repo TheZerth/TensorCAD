@@ -26,11 +26,37 @@ end
     @test hodge_star(grid, F) isa HodgeDualField{R,CliffordTensor{R},typeof(grid)}
     @test length(maxwell_bianchi(A)) == 0
 
+    # expected_J re-derived INDEPENDENTLY BY HAND from the L8.2.1-corrected δ
+    # (DESIGN.md §15.4: never mechanically negate the old baseline).  Two
+    # independent routes, worked blade-by-blade:
+    #
+    # GridBase(1,1) layout (constructor formulas): vertices 1..4; edges
+    # 1 = bottom (h, j=0), 2 = top (h, j=1), 3 = left (v, i=0), 4 = right
+    # (v, i=1); face 1 with CCW boundary (1,+1), (4,+1), (2,-1), (3,-1).
+    # A = e₁ on edge 1 only, so F = dA has the single value
+    #   F(face 1) = +A(1) + A(4) - A(2) - A(3) = e₁.
+    #
+    # Route 1 — the composite δ = (-1)^(n(k+1)+q) ⋆d⋆ with n=2, k=2, q=0,
+    # so σ = (-1)^(2·3+0) = +1, in Cl(2,0) where I = e₁₂, I⁻¹ = -e₁₂:
+    #   ⋆F   : grade-2 value map is -dual(x) = -x·I⁻¹:
+    #          -e₁·(-e₁₂) = e₁e₁e₂ = e₂ at the dual vertex of face 1.
+    #   d(⋆F): dual coboundary = primal incidence transpose: the dual edge of
+    #          primal edge e receives sign(e in ∂face1)·e₂, i.e.
+    #          (+e₂, -e₂, -e₂, +e₂) at the dual edges of edges (1,2,3,4).
+    #   ⋆(d⋆F): dual-grade-1 value map is dual(y) = y·I⁻¹:
+    #          e₂·(-e₁₂) = -e₂e₁e₂ = +e₁, so each ±e₂ becomes ±e₁.
+    #   δF = σ·(...) = (+e₁, -e₁, -e₁, +e₁) on edges (1,2,3,4).
+    #
+    # Route 2 — the definitional contract δ = dᵀ (the signed-incidence
+    # transpose; §15.4): J(e) = Σ_f sign(e in ∂f)·F(f) reading face 1's
+    # boundary signs directly: J(1) = +e₁, J(2) = -e₁, J(3) = -e₁, J(4) = +e₁.
+    #
+    # Both routes agree.
     expected_J = Field(grid, 1, Dict(
-        1 => -e1,
-        2 => e1,
-        3 => e1,
-        4 => -e1,
+        1 => e1,
+        2 => -e1,
+        3 => -e1,
+        4 => e1,
     ))
     J = maxwell_current(grid, A)
     @test length(J) > 0
@@ -49,6 +75,12 @@ end
     @test length(unique(round(_scalar_coeff(evaluate(F, e)); digits=12) for e in cells(grid, 1))) > 2
     @test length(demo.dF) == 0
     @test _field_max_abs(demo.deltaF) > 1e-6
+    # L8.2.1 re-baseline: with the pairing-adjoint δ, Δ is positive-semidefinite
+    # on Euclidean bases, so the standing-mode eigenvalue is the POSITIVE
+    # λ = 2 - 2cos(π/N) (the Hodge sign; the old negative value was the
+    # analyst's-sign Laplacian — DESIGN.md §15.4).
+    @test demo.eigenvalue > 0
+    @test demo.eigenvalue ≈ 2 - 2cos(pi / (3 + 1))
     @test _field_relation_error(demo.laplacianF, demo.eigenvalue, F) < 1e-12
 end
 

@@ -233,16 +233,17 @@ end
 end
 
 @testset "Blackboard: Maxwell end-to-end on the L8.3-verified configuration" begin
-    # Exactly the test_maxwell.jl known-source data.
+    # Exactly the test_maxwell.jl known-source data (L8.2.1 re-baselined value;
+    # the blade-by-blade hand re-derivation lives in test_maxwell.jl).
     grid = GridBase(1, 1)
     m = grid.metric
     e1 = clifford_basis_vector(m, 1)
     A = Field(grid, 1, Dict(1 => e1))
     expected_J = Field(grid, 1, Dict(
-        1 => -e1,
-        2 => e1,
-        3 => e1,
-        4 => -e1,
+        1 => e1,
+        2 => -e1,
+        3 => -e1,
+        4 => e1,
     ))
 
     Avar = FieldVar(:A, grid, 1)

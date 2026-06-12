@@ -17,7 +17,9 @@ using Tensorsmith
     include("test_exterior_derivative.jl")
     include("test_covariant.jl")
     include("test_hodge.jl")
+    include("test_adjointness.jl")
     include("test_maxwell.jl")
+    include("test_inner_product.jl")
     include("test_blackboard.jl")
     include("test_symbolics.jl")
 end

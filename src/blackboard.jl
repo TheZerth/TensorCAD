@@ -878,10 +878,12 @@ Apply one of the **definitional substitutions** everywhere in an expression —
 explicitly, on user invocation only; these are deliberately not automatic
 rewrite rules (§17):
 
-  - `:codifferential` — `δ(x) → (-1)^(n(k+1)+1) ⋅ ⋆(d(⋆(x)))` (the engine's
-    own verified definition, hodge.jl), where `k = expr_grade(x)` and
-    `n = top_grade(base)`.  On a grade-0 argument `δ` is the zero 0-section
-    (engine convention), so the expansion is the typed zero.
+  - `:codifferential` — `δ(x) → (-1)^(n(k+1)+q) ⋅ ⋆(d(⋆(x)))` (the engine's
+    own verified definition, hodge.jl, with the L8.2.1 adjointness-pinned
+    sign), where `k = expr_grade(x)`, `n = top_grade(base)`, and `q` is the
+    number of negative directions in `signature(base)`.  On a grade-0 argument
+    `δ` is the zero 0-section (engine convention), so the expansion is the
+    typed zero.
   - `:laplacian` — `Δ(x) → d(δ(x)) + δ(d(x))` (the engine's verified
     definition).  Mirroring the engine's grade guards, the `d∘δ` term is the
     typed zero on grade 0 and the `δ∘d` term is the typed zero at the top
@@ -918,8 +920,9 @@ function _expand(e::CodiffExpr, which::Symbol)
     n = top_grade(b)
     k = expr_grade(a)
     k == 0 && return ZeroExpr(b, 0; residence = :primal)
+    q = signature(b)[2]
     chain = StarExpr(DExpr(StarExpr(a)))
-    isodd(n * (k + 1) + 1) ? _lincomb([-1], BlackboardExpr[chain]) : chain
+    isodd(n * (k + 1) + q) ? _lincomb([-1], BlackboardExpr[chain]) : chain
 end
 
 function _expand(e::LaplacianExpr, which::Symbol)
