@@ -31,6 +31,28 @@ _hodge_value(x::CliffordTensor, k::Integer, n::Integer) =
     Int(k) == Int(n) ? -dual(x) : dual(x)
 
 """
+    _apply_hodge_weight(b, k, cell, x)
+    _apply_inverse_hodge_weight(b, k, cell, x)
+
+The L10.1 diagonal-volume hooks of the Hodge star: the primal→dual star
+multiplies each primal `k`-cell's complemented value by the diagonal Hodge
+weight `w_k(cell)` (a **positive volume ratio** — signature lives in the
+fibre metric, never here), and the dual→primal star multiplies by the
+inverse weight, so the `⋆⋆` sign law is weight-independent (positive weights
+cancel exactly; the sign comes from signature alone).
+
+The defaults below are **identity** — every pre-L10.1 base keeps today's
+unit-weight behaviour bit-exactly.  A weighted base implements these by
+routing through `_hodge_weight` (the single documented L9.1 weight seam);
+see `WeightedGridBase` in weighted_base.jl.  Weights enter the engine in
+exactly two operator places — the pairing (via `_hodge_weight` directly)
+and these two star factors — and nowhere else; `d`, `boundary`, and the
+dual correspondence are weight-agnostic.
+"""
+_apply_hodge_weight(::BaseSpace, ::Int, ::Int, x) = x
+_apply_inverse_hodge_weight(::BaseSpace, ::Int, ::Int, x) = x
+
+"""
     HodgeDualField{R,E,B}
 
 A sparse section over the **dual** cell index set of a base.  This is not a
@@ -136,9 +158,11 @@ and no silent dropping occur.  Applying `hodge_star` to a `HodgeDualField` maps
 back to an ordinary primal `Field`, so `⋆⋆` is well-defined.
 
 On the shipped orthogonal `GridBase`, the diagonal DEC Hodge volume weights are
-unit.  The dual **correspondence/enumeration** is operator structure needed here;
-dual **volumes** beyond the unit-grid case and dual **geometry/positions** remain
-out of scope (L11 for positions).
+unit.  Non-unit **positive** diagonal weights (the §16.1 dual-volumes slot) are
+provided by `WeightedGridBase` (L10.1): the primal→dual star multiplies by
+`w_k(c)` and the dual→primal star by its inverse, so the `⋆⋆` sign law below is
+weight-independent.  The dual **correspondence/enumeration** is operator
+structure needed here; dual **geometry/positions** remain out of scope (L11).
 
 The fibre value is complemented using the Clifford pseudoscalar (`dual`) with the
 signature-correct sign convention.  The star-square law is
@@ -161,7 +185,8 @@ function hodge_star(b::B, ω::Field{R,E,B}) where {R,E<:CliffordTensor{R},B<:Bas
     vals = Dict{Int,E}()
     for c in cells(b, k)
         dc = dual_cell(b, k, c)
-        y = _hodge_value(evaluate(ω, c), k, n)::E
+        # L10.1: diagonal Hodge weight w_k(c) (identity on unweighted bases).
+        y = _apply_hodge_weight(b, k, Int(c), _hodge_value(evaluate(ω, c), k, n))::E
         iszero(y) || (vals[dc] = y)
     end
     HodgeDualField{R,E,B}(b, target_grade, vals)
@@ -178,7 +203,10 @@ function hodge_star(b::B, η::HodgeDualField{R,E,B}) where {R,E<:CliffordTensor{
     vals = Dict{Int,E}()
     for pc in cells(b, primal_grade)
         dc = dual_cell(b, primal_grade, pc)
-        y = _hodge_value(evaluate(η, dc), l, n)::E
+        # L10.1: inverse diagonal weight 1/w_k(pc) at the mirrored primal grade
+        # (identity on unweighted bases), so ⋆⋆ cancels the weight exactly.
+        y = _apply_inverse_hodge_weight(b, primal_grade, Int(pc),
+                                        _hodge_value(evaluate(η, dc), l, n))::E
         iszero(y) || (vals[Int(pc)] = y)
     end
     Field{R,E,B}(b, primal_grade, vals)

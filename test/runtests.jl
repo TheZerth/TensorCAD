@@ -20,6 +20,7 @@ using Tensorsmith
     include("test_adjointness.jl")
     include("test_maxwell.jl")
     include("test_inner_product.jl")
+    include("test_weighted_base.jl")
     include("test_evolution.jl")
     include("test_blackboard.jl")
     include("test_symbolics.jl")

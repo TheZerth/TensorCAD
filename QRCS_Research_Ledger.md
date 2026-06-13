@@ -1,7 +1,7 @@
 # QRCS Research Ledger
 
 **Companion to:** `DESIGN.md` (which governs the *engine*; this document governs *QRCS theory claims*).
-**Status:** Living document · Rev 1.0 · 2026-06-08
+**Status:** Living document · Rev 1.1 · 2026-06-08 — *Rev 1.1: Experiment 1 RUN; §8 updated with results, analytic confirmation of both failure maxima, the no-topology caveat, and the pre-registration-vs-PM-prior note. §9's "claimable after Experiments" first item is now claimable.*
 **Purpose:** Record what the TensorCAD project has established, dissolved, constrained, or left open about QRCS — with an explicit status label on every claim — so that progress toward a paper is cumulative and honest rather than vibes.
 
 **Status labels (use them; they are the discipline):**
@@ -52,7 +52,7 @@ Recorded here because they originated as QRCS questions and are now verified eng
 
 ## 8. Registered experiments [EXPERIMENT-PENDING] — with pre-registered readings
 
-**Experiment 1 — the dilation curve (runnable at L10; prompt issued).** A walker-pattern on `GraphBase` with per-tick unit budget split between motion and internal phase by an **allocation rule**; measure `dφ/dt` vs hop-rate `v` and compare to `1/γ = √(1−v²)`. Rules compared: linear (`1−v`), **Pythagorean** (`√(1−v²)`), and at least one control (e.g. `1−v²`). **Pre-registered reading:** the Pythagorean rule matching γ is *consistency-by-construction* (the √ was inserted); the scientific content is **discriminative** — the other rules *fail*, showing Lorentz dilation uniquely selects the norm-composition law. **Emergence is NOT demonstrated by this experiment** and may not be claimed; deriving the Pythagorean rule from substrate dynamics is the §2 debt, registered as the follow-up. Failure mode pre-stated: if even the Pythagorean rule misses γ (discretization effects), that is a finding about the walker model, reported as such.
+**Experiment 1 — the dilation curve [RUN — Rev 1.1; results committed at `scripts/experiments/qrcs_dilation/`].** A walker on a 12-node cycle `GraphBase`, T = 10,000 ticks, deterministic accumulator motion, three pre-registered allocation rules. **Result, exactly as pre-registered:** PYTHAGOREAN tracks `1/γ` to float roundoff (max |dev| 2.3×10⁻¹³, equal to the loop self-check error — i.e. zero beyond plumbing); LINEAR fails with max |dev| 0.41414; QUADRATIC (control) fails with max |dev| 0.24589, sitting *below* target. **Analytic confirmation (post-hoc, strengthens the result):** both failure maxima land on closed-form values — linear's worst case is `√2 − 1 ≈ 0.41421` at `v = 1/√2`; quadratic's is exactly `¼` at `v = √3/2` — the measured maxima are these, sampled adjacent to their peaks. **Permitted claim (Ledger §9 shape, as reported):** Lorentz dilation discriminates among allocation laws and selects norm-composition; dilation is *reproduced under an inserted law, not derived*; no emergence is claimed. **Recorded caveat:** the graph plays no dynamical role in this experiment — the phase depends only on the rule; "on a GraphBase" must not be read as topology mattering. **Registered follow-up unchanged:** deriving the Pythagorean rule from substrate dynamics is the §2 debt. (A PM expected-outcome error — predicting the control would overshoot when `γ⁻² ≤ γ⁻¹` puts it below — was caught by the agent and the measured direction reported, not steered: the pre-registration discipline functioning against the experimenters' own priors, which is its job.)
 
 **Experiment 2 — metric-gradient refraction (needs the variable-Hodge-weights mini-phase first).** Evolve an L10 wave packet across a region of graded per-cell metric (entering via the `_hodge_weight` seam — the single documented entry point for non-unit volumes); observe refraction and slowing: a **Shapiro-delay analog on the grid**, demonstrating trace-Q-as-medium *kinematics* in the sandbox. **Pre-registered reading:** success demonstrates the *exact-re-description* half of §5 (gravity kinematics in medium language) — it does **not** demonstrate EM control of gravity, vacuum engineering, or any inexact-co-variation effect; those remain on the constrained fork.
 
@@ -68,4 +68,4 @@ Recorded here because they originated as QRCS questions and are now verified eng
 
 ---
 
-*End Rev 1.0. This ledger is the tie-breaker for QRCS claims, as DESIGN.md is for the engine. Amend deliberately.*
+*End Rev 1.1. This ledger is the tie-breaker for QRCS claims, as DESIGN.md is for the engine. Amend deliberately.*
